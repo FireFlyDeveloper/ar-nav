@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { findPath, directionYaw, pathLength, NODES } from "../indoorGraph.js";
 
@@ -7,14 +7,18 @@ import { findPath, directionYaw, pathLength, NODES } from "../indoorGraph.js";
  *
  *  - Reads `?from=` (the QR the user just scanned = "you are here")
  *    and `?to=` (their destination) from the URL.
- *  - A-Frame + AR.js run inside the page; the user grants camera access.
- *  - When AR.js finds a barcode marker, we look at its `barcodeValue` to
- *    figure out WHICH waypoint the user is actually standing at.
- *  - We compute the path through the indoor graph and anchor a 3D arrow
- *    to the marker, pointing at the first step of the path.
+ *  - Shows a launch panel; the user must click "Start camera" to grant
+ *    the getUserMedia permission. The browser's auto-play policy treats
+ *    the camera as media and refuses to start it outside a user gesture.
+ *  - On click, we getUserMedia ourselves, attach the stream to a
+ *    <video> we create and append to the DOM, then mount the A-Frame
+ *    scene with `arjs-video-selector` pointing at our video. AR.js
+ *    picks it up via the WebcamTexture path.
  *
- *  No GPS, no Wi-Fi triangulation, no SLAM. The printed QR sticker on
- *  the wall is the only positioning signal we have.
+ *  This avoids the AR.js issue where its internal getUserMedia races
+ *  with the user gesture and the <video> element ends up orphaned in
+ *  memory (causing the "black canvas" symptom even though the camera
+ *  indicator is on).
  */
 export default function ARNav() {
   const [params] = useSearchParams();
@@ -29,194 +33,282 @@ export default function ARNav() {
     [from, nextStep]
   );
 
+  const [started, setStarted] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [confirmedFrom, setConfirmedFrom] = useState(from);
-
-  // Wire markerFound / markerLost after the scene is mounted.
-  useEffect(() => {
-    let mounted = true;
-    const wire = () => {
-      if (!mounted) return;
-      const scene = document.querySelector("a-scene");
-      if (!scene) return;
-
-      // AR.js barcode values are numbers 0..63 in 3x3 mode. We hash the
-      // waypoint id to a stable number so the printed QR (which the user
-      // reads with their phone) and the tracked marker (which AR.js reads
-      // from the same QR) match up. The mapping is deterministic: we use
-      // the index in the waypoint list.
-      const waypointIds = Object.keys(NODES).filter((id) => id.startsWith("QR_"));
-      const targetIdx = waypointIds.indexOf(from);
-      const marker = scene.querySelectorAll("a-marker")[targetIdx] || scene.querySelector("a-marker");
-      const arrow = scene.querySelector("#nav-arrow");
-      const distText = scene.querySelector("#nav-distance");
-
-      if (arrow) {
-        arrow.setAttribute("rotation", `0 ${(yaw * 180) / Math.PI} 0`);
-      }
-      if (distText && nextStep) {
-        const remaining = pathLength(path.slice(path.indexOf(nextStep) - 1));
-        distText.setAttribute(
-          "value",
-          `${Math.round(remaining)} m to ${NODES[nextStep]?.name || nextStep}`
-        );
-      }
-
-      if (marker) {
-        marker.addEventListener("markerFound", () => {
-          if (!mounted) return;
-          setScanned(true);
-          // Map the detected marker index back to the waypoint id.
-          const idx = Array.from(scene.querySelectorAll("a-marker")).indexOf(marker);
-          if (idx >= 0 && waypointIds[idx]) setConfirmedFrom(waypointIds[idx]);
-        });
-        marker.addEventListener("markerLost", () => {
-          if (!mounted) return;
-          setScanned(false);
-        });
-      }
-    };
-    // Wait two RAFs to be sure the A-Frame scene has initialized.
-    const raf = requestAnimationFrame(() => requestAnimationFrame(wire));
-    return () => {
-      mounted = false;
-      cancelAnimationFrame(raf);
-    };
-  }, [from, yaw, nextStep, path]);
+  const [cameraState, setCameraState] = useState("idle"); // idle | live | error
+  const [cameraError, setCameraError] = useState(null);
 
   if (!NODES[from] || !NODES[to]) {
     return (
-      <>
-        <nav className="glass-nav">
-          <Link to="/" className="brand">AR Nav</Link>
-          <span className="spacer" />
-          <Link to="/" className="btn pill-link">Exit</Link>
-        </nav>
-        <div className="app">
-          <h1>Unknown location</h1>
-          <p>
-            The QR sticker encodes <code>from={from}</code> or{" "}
-            <code>to={to}</code>, which is not in the building map. Print
-            your stickers from <Link to="/posters">/posters</Link> to make
-            sure they match the IDs in <code>src/indoorGraph.js</code>.
-          </p>
-          <Link to="/" className="btn primary">Back home</Link>
-        </div>
-      </>
+      <div className="app">
+        <h1>Unknown location</h1>
+        <p>
+          The QR sticker encodes <code>from={from}</code> or{" "}
+          <code>to={to}</code>, which is not in the building map.
+        </p>
+        <Link to="/" className="btn primary">Back home</Link>
+      </div>
     );
   }
-
   if (!path) {
     return (
-      <>
-        <nav className="glass-nav">
-          <Link to="/" className="brand">AR Nav</Link>
-          <span className="spacer" />
-          <Link to="/" className="btn pill-link">Exit</Link>
-        </nav>
-        <div className="app">
-          <h1>No route</h1>
-          <p>
-            The building graph has no path from <code>{from}</code> to{" "}
-            <code>{to}</code>.
-          </p>
-          <Link to="/" className="btn primary">Back home</Link>
-        </div>
-      </>
+      <div className="app">
+        <h1>No route</h1>
+        <p>No path from <code>{from}</code> to <code>{to}</code>.</p>
+        <Link to="/" className="btn primary">Back home</Link>
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="ar-stage">
-        {/*
-          AR.js barcode markers: any QR code with the matrix pattern works
-          as both the URL carrier AND a tracking marker. We pre-declare the
-          waypoint IDs from the graph so the camera only tries to track
-          the ones we care about (3x3 matrix supports barcode values
-          0..63, so we map "QR_A1" → value "A1" via the .replace below).
-        */}
-        {/* AR.js barcode markers. Notes from the official docs:
-            - `embedded` mode: scene is mounted into the page DOM (not fullscreen)
-            - `sourceType: webcam` (the only valid value in 3.4.x) requests
-              the rear camera automatically on mobile
-            - `detectionMode: mono_and_matrix` enables the 3x3 barcode path
-            - `matrixCodeType: 3x3` limits barcode IDs to 0..63 — we map each
-              waypoint's INDEX in the filtered list to its barcode value
-            - Per AR.js troubleshooting: the camera prompt is part of
-              getUserMedia, so the user must allow it on EACH page load and
-              on iOS Safari must be on a secure context (https or localhost) */}
-        <a-scene
-          embedded
-          vr-mode-ui="enabled: false"
-          renderer="logarithmicDepthBuffer: true; alpha: true;"
-          arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
-          style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 0 }}
-        >
-          <a-entity camera></a-entity>
+    <div className="ar-stage" data-status={cameraState}>
+      {!started && (
+        <LaunchPanel
+          fromId={from}
+          toId={to}
+          nextStep={nextStep}
+          onStart={() => setStarted(true)}
+        />
+      )}
 
-          {Object.keys(NODES)
-            .filter((id) => id.startsWith("QR_"))
-            .map((id, idx) => {
-              // AR.js 3x3 barcode matrix: numeric value 0..63. We use the
-              // index in the waypoint list as the barcode value.
-              const barcodeVal = String(idx);
-              return (
-                <a-marker
-                  key={id}
-                  type="barcode"
-                  value={barcodeVal}
-                  smooth="true"
-                  smoothCount="5"
-                  smoothTolerance="0.01"
-                  smoothThreshold="2"
-                >
-                  <a-entity
-                    id="nav-arrow"
-                    position="0 0 0"
-                    rotation={`0 ${(yaw * 180) / Math.PI} 0`}
-                  >
-                    <a-entity
-                      geometry="primitive: cone; radiusBottom: 0.15; radiusTop: 0; height: 0.5"
-                      material="color: #0071e3; emissive: #0071e3; emissiveIntensity: 0.7; opacity: 0.95;"
-                      position="0 0.4 0"
-                      rotation="-90 0 0"
-                    />
-                    <a-entity
-                      geometry="primitive: cylinder; radius: 0.05; height: 0.6"
-                      material="color: #0071e3; opacity: 0.85;"
-                      position="0 0 0"
-                    />
-                    <a-entity
-                      id="nav-distance"
-                      text="value: ...; color: white; align: center; width: 1.6;"
-                      position="0 1.1 0"
-                    />
-                  </a-entity>
-                </a-marker>
-              );
-            })}
-        </a-scene>
-      </div>
+      {started && (
+        <ARScene
+          yaw={yaw}
+          fromId={from}
+          onCameraState={setCameraState}
+          onCameraError={setCameraError}
+          onScanned={setScanned}
+          onConfirmFrom={setConfirmedFrom}
+        />
+      )}
 
       <div className="ar-overlay">
-        <div>
+        <div className="row">
           <div className="who">
-            <span className={`status-dot ${scanned ? "ok" : "scan"}`} />
-            {scanned ? "Marker locked" : "Scanning…"}
+            {cameraState === "error"
+              ? "Camera blocked"
+              : scanned
+              ? `On ${confirmedFrom}`
+              : cameraState === "live"
+              ? nextStep ? `Next: ${nextStep}` : "Arrived"
+              : "Scan a sticker"}
           </div>
           <div className="meta">
-            {NODES[confirmedFrom]?.name || from} → {NODES[to]?.name}
+            {cameraState === "error"
+              ? cameraError || "Check browser permission"
+              : `from ${from} → ${to}`}
           </div>
         </div>
-        <Link to="/" className="btn pill-link">Exit</Link>
+        <div className="row">
+          <Link to="/" className="btn btn-pill btn-secondary">Exit</Link>
+        </div>
       </div>
 
-      <div className="hint">
-        {scanned
-          ? `Follow the arrow · ${Math.round(totalMeters)} m to ${NODES[to]?.name}`
-          : "Point your camera at the QR sticker on the wall"}
-      </div>
-    </>
+      {cameraState === "live" && !scanned && nextStep && (
+        <div className="ar-floating-bar">
+          <span className="ar-floating-bar-text">Point camera at a waypoint QR</span>
+          <span className="ar-floating-bar-meta">{Math.round(totalMeters)} m route</span>
+        </div>
+      )}
+    </div>
   );
+}
+
+function LaunchPanel({ fromId, toId, nextStep, onStart }) {
+  return (
+    <div className="ar-launch">
+      <div className="ar-launch-card">
+        <div className="ar-launch-eyebrow">AR Nav</div>
+        <h1 className="ar-launch-title">Ready to navigate.</h1>
+        <p className="ar-launch-body">
+          Tap the button to start the camera. Point it at the{" "}
+          <strong>{fromId}</strong> sticker on the wall. We'll show a 3D
+          arrow pointing toward <strong>{toId}</strong>.
+        </p>
+        <div className="ar-launch-cta">
+          <button
+            type="button"
+            className="btn btn-pill btn-primary"
+            onClick={onStart}
+          >
+            Start camera
+          </button>
+        </div>
+        <div className="ar-launch-fine">
+          Camera feed stays on this device. No video is uploaded.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ARScene
+ *
+ *  1. On mount, create a <video id="arjs-video"> and append it to
+ *     document.body.
+ *  2. Request the camera ourselves (inside the user-gesture context
+ *     that set started=true).
+ *  3. Attach the stream to the video and play it.
+ *  4. Mount the A-Frame scene with arjs configured to use the existing
+ *     video element via the webcam-texture path. AR.js will pick it up
+ *     and pipe it into the WebGL canvas as a VideoTexture.
+ */
+function ARScene({
+  yaw,
+  fromId,
+  onCameraState,
+  onCameraError,
+  onScanned,
+  onConfirmFrom,
+}) {
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    // ─── Step 1: Create the <video> element up front ────────────────
+    // AR.js's webcam-texture path looks for an existing video via the
+    // selector in the second constructor arg, OR picks up <video id="arjs-video">
+    // from the DOM. By creating it ourselves we side-step the race where
+    // AR.js's own getUserMedia call fails inside a non-gesture context
+    // and the video ends up orphaned in memory.
+    const video = document.createElement("video");
+    video.id = "arjs-video";
+    video.setAttribute("autoplay", "");
+    video.setAttribute("playsinline", "");
+    video.muted = true;
+    video.style.cssText =
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:1;display:block;";
+    document.body.appendChild(video);
+    videoRef.current = video;
+
+    // ─── Step 2: Request the camera, inside the user-gesture context ─
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        video.srcObject = stream;
+        await video.play();
+        onCameraState("live");
+      } catch (err) {
+        if (cancelled) return;
+        onCameraError(`${err.name}: ${err.message}`);
+        onCameraState("error");
+      }
+    })();
+
+    // ─── Step 3: Build the A-Frame scene ────────────────────────────
+    const sceneEl = document.createElement("a-scene");
+    sceneEl.setAttribute("embedded", "");
+    sceneEl.setAttribute("vr-mode-ui", "enabled: false");
+    sceneEl.setAttribute("renderer", "logarithmicDepthBuffer: true; alpha: true;");
+    // videoTexture:true tells AR.js to use the <video> element on the DOM
+    // as the source instead of requesting its own camera. We pass the
+    // selector to be extra explicit. sourceType: webcam keeps the default
+    // constraints consistent.
+    sceneEl.setAttribute(
+      "arjs",
+      "sourceType: webcam; videoTexture: true; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
+    );
+    sceneEl.style.cssText =
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2;";
+    sceneRef.current = sceneEl;
+
+    // Camera entity (required for AR.js)
+    const cam = document.createElement("a-entity");
+    cam.setAttribute("camera", "");
+    sceneEl.appendChild(cam);
+
+    // One <a-marker> per QR waypoint
+    const waypointIds = Object.keys(NODES).filter((id) => id.startsWith("QR_"));
+    waypointIds.forEach((id, idx) => {
+      const marker = document.createElement("a-marker");
+      marker.setAttribute("type", "barcode");
+      marker.setAttribute("value", String(idx));
+      marker.setAttribute("smooth", "true");
+      marker.setAttribute("smoothCount", "5");
+      marker.setAttribute("smoothTolerance", "0.01");
+      marker.setAttribute("smoothThreshold", "2");
+
+      // Cone arrow pointing along the path
+      const arrow = document.createElement("a-entity");
+      arrow.setAttribute(
+        "geometry",
+        "primitive: cone; radiusBottom: 0.06; radiusTop: 0; height: 0.5; openEnded: true"
+      );
+      arrow.setAttribute(
+        "material",
+        "color: #0066cc; emissive: #0066cc; emissiveIntensity: 0.4; opacity: 0.95;"
+      );
+      arrow.setAttribute("position", "0 0.4 0");
+      arrow.setAttribute("rotation", `-90 ${(yaw * 180) / Math.PI} 0`);
+      arrow.setAttribute(
+        "animation",
+        "property: position; to: 0 0.6 0; dir: alternate; dur: 800; loop: true"
+      );
+      marker.appendChild(arrow);
+
+      // Waypoint label
+      const label = document.createElement("a-text");
+      label.setAttribute("value", `→ ${id}`);
+      label.setAttribute("color", "#ffffff");
+      label.setAttribute("align", "center");
+      label.setAttribute("position", "0 0.8 0");
+      marker.appendChild(label);
+
+      sceneEl.appendChild(marker);
+    });
+
+    // Wire marker events after the scene loads
+    sceneEl.addEventListener("loaded", () => {
+      const markers = sceneEl.querySelectorAll("a-marker");
+      markers.forEach((marker, idx) => {
+        marker.addEventListener("markerFound", () => {
+          onScanned(true);
+          onConfirmFrom(waypointIds[idx]);
+        });
+        marker.addEventListener("markerLost", () => onScanned(false));
+      });
+    });
+
+    // ─── Step 4: Mount the scene ────────────────────────────────────
+    // Defer to a microtask so the click-handler call stack is still
+    // considered "active" for any further getUserMedia invocations.
+    const t = setTimeout(() => {
+      mountRef.current.appendChild(sceneEl);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      // Stop the camera stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((tr) => tr.stop());
+        streamRef.current = null;
+      }
+      // Remove the video
+      if (video.parentNode) video.parentNode.removeChild(video);
+      // Remove the scene
+      if (sceneEl.parentNode) sceneEl.parentNode.removeChild(sceneEl);
+    };
+  }, [yaw, onCameraState, onCameraError, onScanned, onConfirmFrom]);
+
+  return <div ref={mountRef} className="ar-scene-mount" />;
 }
