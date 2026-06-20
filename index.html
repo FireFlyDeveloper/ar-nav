@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0b0d10" />
+    <title>AR Nav — Indoor Wayfinding</title>
+
+    <!--
+      A-Frame and AR.js must be loaded as classic <script> tags (not ESM
+      imports) because they register the global <a-scene>, <a-marker>, etc.
+      custom elements. AR.js is pinned to a specific commit via raw.githack
+      because the npm-published version of `ar.js` is several years stale
+      and the live AR.js-org repo is the maintained one.
+    -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,464 @@
+/* =============================================================================
+   AR Nav — Apple Design System (DESIGN.md tokens)
+   Source of truth: ./DESIGN.md (Apple-design-analysis, 2026)
+   Mapped 1:1 from the spec tokens below; the spec is the canonical reference.
+   ============================================================================= */
+
+:root {
+  /* --- Colors (DESIGN.md → colors.*) ---------------------------------------- */
+  --color-primary:         #0066cc;  /* Action Blue — only interactive color  */
+  --color-primary-focus:   #0071e3;  /* Focus ring on dark / pressed          */
+  --color-primary-on-dark: #2997ff;  /* Sky Link Blue — links on dark tiles   */
+  --color-ink:             #1d1d1f;  /* Headlines, body, dark utility fills   */
+  --color-body:            #1d1d1f;  /* (alias of ink — single text tone)     */
+  --color-body-on-dark:    #ffffff;
+  --color-body-muted:      #cccccc;  /* secondary copy on dark tiles          */
+  --color-ink-muted-80:    #333333;  /* body text on Pearl Button             */
+  --color-ink-muted-48:    #7a7a7a;  /* disabled / fine-print                 */
+  --color-divider-soft:    #f0f0f0;  /* ring shadow on secondary buttons      */
+  --color-hairline:        #e0e0e0;  /* 1px card border                       */
+  --color-canvas:          #ffffff;
+  --color-canvas-parchment:#f5f5f7;
+  --color-surface-pearl:   #fafafc;
+  --color-surface-tile-1:  #272729;
+  --color-surface-tile-2:  #2a2a2c;
+  --color-surface-tile-3:  #252527;
+  --color-surface-black:   #000000;
+  --color-surface-chip:    rgba(210, 210, 215, 0.64);  /* DESIGN.md transl. chip */
+  --color-on-primary:      #ffffff;
+  --color-on-dark:         #ffffff;
+
+  /* --- Type stacks (DESIGN.md → typography.*) -------------------------------- */
+  --font-display:  "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-text:     "SF Pro Text",    system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Inter substitute hint (per DESIGN.md: tighten letter-spacing -0.01em and
+     line-height 0.03 on display sizes when not on macOS) */
+  --inter-fix-display:    -0.01em;
+  --inter-fix-body-lh:    1.44;     /* 1.47 → 1.44 when substituting Inter    */
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font-text);
+  font-size: 17px;                       /* DESIGN.md: body 17px, NOT 16px   */
+  font-weight: 400;
+  line-height: 1.47;                      /* DESIGN.md: body line-height 1.47  */
+  letter-spacing: -0.374px;               /* DESIGN.md: body tracking -0.374   */
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* --- Typography scale (DESIGN.md → typography.*) ----------------------------- */
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 12px;
+}
+h1 { font-size: 56px;  line-height: 1.07; letter-spacing: -0.28px;  }  /* hero-display */
+h2 { font-size: 40px;  line-height: 1.10; letter-spacing: 0;       }  /* display-lg   */
+h3 { font-size: 28px;  line-height: 1.14; letter-spacing: 0.196px; font-weight: 400; } /* lead */
+h4 { font-size: 21px;  line-height: 1.19; letter-spacing: 0.231px; }  /* tagline      */
+
+p {
+  color: var(--color-ink);                /* single text tone, not pure black  */
+  line-height: 1.47;
+  margin: 0 0 12px;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  background: var(--color-canvas-parchment);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  letter-spacing: -0.224px;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--color-primary-focus); outline-offset: 2px; }
+
+ul, ol { line-height: 1.7; color: var(--color-ink); }
+
+/* --- Spacing (DESIGN.md → spacing.*) ----------------------------------------- */
+
+:root {
+  --space-xxs:    4px;
+  --space-xs:     8px;
+  --space-sm:     12px;
+  --space-md:     17px;
+  --space-lg:     24px;
+  --space-xl:     32px;
+  --space-xxl:    48px;
+  --space-section: 80px;
+
+  --radius-none:  0px;
+  --radius-xs:    5px;
+  --radius-sm:    8px;
+  --radius-md:    11px;
+  --radius-lg:    18px;
+  --radius-pill:  9999px;
+  --radius-full:  9999px;
+}
+
+/* =============================================================================
+   global-nav — DESIGN.md → components.global-nav
+   44px, surface-black, nav-link typography (12px / 400 / -0.12px)
+   ============================================================================= */
+.glass-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 44px;
+  background: var(--color-surface-black);
+  color: var(--color-on-dark);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.12px;
+  line-height: 1.0;
+}
+.glass-nav a {
+  color: var(--color-on-dark);
+  opacity: 0.8;
+  margin-right: var(--space-lg);
+}
+.glass-nav a:hover { opacity: 1; text-decoration: none; }
+.glass-nav .brand {
+  font-weight: 600;
+  opacity: 1;
+  margin-right: var(--space-lg);
+}
+
+/* =============================================================================
+   sub-nav-frosted — DESIGN.md → components.sub-nav-frosted
+   52px, parchment @ 80% with backdrop blur, tagline typography
+   ============================================================================= */
+.sub-nav {
+  position: sticky;
+  top: 44px;
+  z-index: 49;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  background: rgba(245, 245, 247, 0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  font-family: var(--font-text);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.231px;
+  color: var(--color-ink);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* =============================================================================
+   Buttons — DESIGN.md → components.button-primary, button-secondary-pill,
+   button-dark-utility, button-pearl-capsule
+   ============================================================================= */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-text);
+  font-size: 17px;             /* body  */
+  font-weight: 400;
+  line-height: 1.0;
+  padding: 11px 22px;          /* button-primary padding */
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: -0.374px;
+  transition: filter 120ms ease;
+}
+.btn:hover  { text-decoration: none; filter: brightness(1.05); }
+.btn:focus-visible { outline: 2px solid var(--color-primary-focus); outline-offset: 2px; }
+.btn:active { transform: scale(0.95); }       /* DESIGN.md: scale(0.95) is THE press state */
+
+.btn.primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* button-secondary-pill — ghost pill, "Learn more" */
+.btn.pill-link {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  padding: 11px 22px;
+  font-size: 17px;
+}
+.btn.pill-link.on-dark {
+  color: var(--color-primary-on-dark);
+  border-color: var(--color-primary-on-dark);
+}
+
+/* button-dark-utility — Sign In / Bag / language picker (8px radius) */
+.btn.utility {
+  background: var(--color-ink);
+  color: var(--color-on-dark);
+  font-size: 14px;             /* button-utility 14px / 400 / -0.224px */
+  letter-spacing: -0.224px;
+  line-height: 1.29;
+  padding: 8px 15px;           /* 8px 15px — DESIGN.md padding */
+  border-radius: var(--radius-sm);
+}
+
+/* button-pearl-capsule — product-card secondary (11px radius) */
+.btn.pearl {
+  background: var(--color-surface-pearl);
+  color: var(--color-ink-muted-80);
+  font-size: 14px;             /* caption 14px */
+  letter-spacing: -0.224px;
+  line-height: 1.29;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 3px solid var(--color-divider-soft);  /* ring shadow, not a hard line */
+}
+
+.btn .chev { margin-left: 4px; }
+
+.row { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+
+/* =============================================================================
+   Cards & Tiles — DESIGN.md → components.product-tile-*, store-utility-card
+   ============================================================================= */
+
+.app {
+  min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: var(--space-section) var(--space-lg) 96px;
+}
+
+.hero {
+  text-align: center;
+  padding: var(--space-section) 0 var(--space-xxl);
+}
+.hero h1 { margin-bottom: var(--space-xs); }
+.hero .sub {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.19;
+  letter-spacing: 0.231px;
+  color: var(--color-ink);
+  margin-bottom: var(--space-md);
+}
+
+/* product-tile-light / parchment — edge-to-edge, no rounding.
+   Break out of the .app 980px column with a viewport-wide negative margin so
+   the color change itself is the section divider, per DESIGN.md. */
+.app { position: relative; }
+.card {
+  background: var(--color-canvas-parchment);
+  border-radius: 0;
+  padding: var(--space-section) var(--space-xl);
+  margin: 0 0 0 calc(50% - 50vw);          /* break out left, full-width */
+  width: 100vw;
+  max-width: 100vw;
+}
+.card + .card { margin-top: 0; }            /* tiles touch, no gap */
+.card.white   { background: var(--color-canvas); }
+.card.dark    { background: var(--color-surface-tile-1); color: var(--color-on-dark); }
+.card.dark h1, .card.dark h2, .card.dark h3, .card.dark h4,
+.card.dark p, .card.dark li { color: var(--color-on-dark); }
+.card.dark a  { color: var(--color-primary-on-dark); }
+
+/* Inner constraint — keep prose inside the 980px reading column even though
+   the section surface itself is full-bleed. */
+.card > * { max-width: 980px; margin-left: auto; margin-right: auto; }
+
+/* store-utility-card — rounded, hairline border, no shadow */
+.utility-card {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+.utility-card h3 { font-size: 17px; font-weight: 600; line-height: 1.24; }
+
+/* Form inputs — search-input rounded pill, body 17px, 44px height */
+input, select {
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--color-canvas);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  font: 400 17px/1.0 var(--font-text);
+  letter-spacing: -0.374px;
+  height: 44px;
+}
+input:focus, select:focus {
+  outline: 2px solid var(--color-primary-focus);
+  outline-offset: 0;
+  border-color: transparent;
+}
+label {
+  display: block;
+  font-size: 14px;
+  color: var(--color-ink-muted-80);
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+/* QR poster grid */
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+.qr-tile {
+  /* store-utility-card, 18px radius */
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--color-ink);
+}
+.qr-tile img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+.qr-tile h4 { color: var(--color-ink); margin: var(--space-sm) 0 var(--space-xxs); font-size: 17px; font-weight: 600; line-height: 1.24; }
+.qr-tile .id  { color: var(--color-ink-muted-80); font-size: 12px; letter-spacing: -0.12px; }
+.qr-tile .url { color: var(--color-ink-muted-48); font-size: 10px; word-break: break-all; margin-top: var(--space-xs); }
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: center;
+  font-size: 14px;
+  color: var(--color-ink-muted-80);
+  margin: var(--space-xs) 0 var(--space-md);
+}
+.legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-xs); }
+.dot.you  { background: var(--color-primary); }
+.dot.dest { background: var(--color-ink); }
+
+/* =============================================================================
+   AR view chrome — uses the floating-sticky-bar pattern
+   ============================================================================= */
+.ar-stage {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 0;
+}
+
+.ar-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0));
+  color: var(--color-on-dark);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.ar-overlay .row { pointer-events: auto; }
+.ar-overlay .who  { font-size: 17px; font-weight: 600; line-height: 1.24; }
+.ar-overlay .meta { font-size: 12px; opacity: 0.7; line-height: 1.3; margin-top: 2px; }
+.ar-overlay .btn  { font-size: 14px; padding: 8px 16px; }
+
+.hint {
+  position: fixed;
+  bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--color-on-dark);
+  background: rgba(0, 0, 0, 0.7);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  letter-spacing: -0.224px;
+  z-index: 10;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  text-align: center;
+  max-width: 90%;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--space-xs);
+  vertical-align: 1px;
+}
+.status-dot.ok   { background: #34c759; box-shadow: 0 0 8px #34c75980; }
+.status-dot.scan { background: var(--color-primary-on-dark); animation: pulse 1.4s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.divider { height: 1px; background: rgba(0, 0, 0, 0.08); margin: var(--space-md) 0; }
+.foot {
+  color: var(--color-ink-muted-48);
+  font-size: 12px;
+  letter-spacing: -0.12px;
+  text-align: center;
+  margin-top: var(--space-xxl);
+}
+
+.muted { color: var(--color-ink-muted-80); }
+
+/* --- Responsive (DESIGN.md breakpoints) ------------------------------------- */
+@media (max-width: 1068px) {
+  h1 { font-size: 40px; }    /* 56 → 40  */
+}
+@media (max-width: 833px) {
+  /* global nav collapses — for now we keep it visible but tighter */
+  .glass-nav { padding: 0 var(--space-md); }
+  .glass-nav a { margin-right: var(--space-md); }
+  .app { padding: var(--space-xxl) var(--space-md) var(--space-section); }
+  .hero { padding: var(--space-xxl) 0 var(--space-lg); }
+  .card { padding: var(--space-xxl) var(--space-md); }
+}
+@media (max-width: 640px) {
+  h1 { font-size: 34px; }    /* 40 → 34  */
+  h2 { font-size: 28px; }
+  h3 { font-size: 21px; }
+  .app { padding: var(--space-xl) var(--space-md) var(--space-xxl); }
+  .card { padding: var(--space-xl) var(--space-md); }
+}
+@media (max-width: 419px) {
+  h1 { font-size: 28px; }    /* 34 → 28  */
+}
+
+@media print {
+  .glass-nav, .sub-nav, .row .btn { display: none; }
+  .qr-tile { box-shadow: none; border: 1px solid var(--color-hairline); }
+  body { background: white; }
+}
