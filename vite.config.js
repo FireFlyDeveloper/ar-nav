@@ -13,6 +13,7 @@ export default defineConfig({
   },
   preview: {
     host: true,
-    port: 4173,
+    port: 9876,
+    allowedHosts: ["navigation.ffly.site", "homelab.local", "localhost"],
   },
 });
