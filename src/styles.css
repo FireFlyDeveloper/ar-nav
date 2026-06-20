@@ -372,6 +372,27 @@ label {
   z-index: 0;
 }
 
+/* AR.js injects a <video> element and a <canvas> inside the <a-scene>.
+   Both MUST be visible and fill the scene container, or the camera feed
+   will appear as a black square. The <video> carries the live webcam and
+   sits BEHIND the AR canvas; the canvas carries the 3D overlay. */
+.ar-stage video,
+.ar-stage canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  z-index: 0 !important;
+}
+.ar-stage a-scene,
+.ar-stage a-scene > div,
+.ar-stage > div {
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
 .ar-overlay {
   position: fixed;
   top: 0; left: 0; right: 0;

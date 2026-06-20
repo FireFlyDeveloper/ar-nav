@@ -136,12 +136,22 @@ export default function ARNav() {
           the ones we care about (3x3 matrix supports barcode values
           0..63, so we map "QR_A1" → value "A1" via the .replace below).
         */}
+        {/* AR.js barcode markers. Notes from the official docs:
+            - `embedded` mode: scene is mounted into the page DOM (not fullscreen)
+            - `sourceType: webcam` (the only valid value in 3.4.x) requests
+              the rear camera automatically on mobile
+            - `detectionMode: mono_and_matrix` enables the 3x3 barcode path
+            - `matrixCodeType: 3x3` limits barcode IDs to 0..63 — we map each
+              waypoint's INDEX in the filtered list to its barcode value
+            - Per AR.js troubleshooting: the camera prompt is part of
+              getUserMedia, so the user must allow it on EACH page load and
+              on iOS Safari must be on a secure context (https or localhost) */}
         <a-scene
           embedded
-          arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false;"
           vr-mode-ui="enabled: false"
-          renderer="logarithmicDepthBuffer: true;"
-          style={{ position: "absolute", inset: 0 }}
+          renderer="logarithmicDepthBuffer: true; alpha: true;"
+          arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
+          style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 0 }}
         >
           <a-entity camera></a-entity>
 
