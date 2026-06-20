@@ -55,16 +55,15 @@ export default function Home() {
         <div className="card">
           <h2>How it works.</h2>
           <p>
-            Each QR sticker encodes a URL like{" "}
+            Each poster has a normal QR code that opens{" "}
             <code>/ar?from=QR_A1&amp;to=room-301</code>. When the phone's
-            camera app decodes it, the browser opens this React app. AR.js
-            then finds the same QR sticker in the camera view and anchors a
-            3D arrow to it, pointing at the destination based on an indoor
-            graph.
+            camera app scans it, the browser opens this React app. Zappar
+            image tracking then locks onto the poster itself and anchors a
+            3D arrow to it, pointing at the destination.
           </p>
           <p>
-            No GPS. No app install. No backend. The sticker is both the
-            link and the tracking marker.
+            No GPS. No app install. No backend. The poster is both the
+            link and the tracking target.
           </p>
         </div>
 
@@ -72,7 +71,7 @@ export default function Home() {
         <div className="card dark">
           <h2>Three things you need.</h2>
           <ol>
-            <li>A printed QR sticker at every decision point.</li>
+            <li>A printed poster at every decision point.</li>
             <li>An indoor graph of waypoints and rooms.</li>
             <li>This React app hosted on any static host with HTTPS.</li>
           </ol>
@@ -98,8 +97,55 @@ export default function Home() {
           </ul>
         </div>
 
+        <div className="card yellow" id="hosting">
+          <h2>Hosting on a custom domain?</h2>
+          <p>
+            Zappar's image tracker license check is hard-coded to the host
+            the app is loaded from. The Zappar WASM module whitelists
+            these host patterns and treats everything else as a custom
+            domain that needs to be registered with Zappar:
+          </p>
+          <ul>
+            <li><code>*.zappar.io</code>, <code>*.webar.run</code>, <code>*.arweb.app</code></li>
+            <li><code>*.ngrok.io</code> and <code>*.ngrok-free.app</code></li>
+            <li>Local testing: <code>0.0.0.0</code>, <code>127.*</code>, <code>192.168.*</code>, <code>10.*</code></li>
+          </ul>
+          <p>
+            If you open the app on <code>navigation.ffly.site</code> (or
+            any other custom domain), Zappar will display a black banner
+            that says <em>“Visit our licensing page to find out about
+            hosting on your own domain.”</em> and the AR camera will not
+            start until that domain is registered for an active
+            ZapWorks / Zappar subscription.
+          </p>
+          <p>
+            <strong>To test without paying for a license:</strong> run
+            the dev server (<code>npm run dev</code>) and open it on
+            your phone over the local Wi-Fi — the LAN IP gets the
+            <code>192.168.*</code> exemption. For sharing with a phone
+            on a different network, expose port 5173 with ngrok
+            (<code>ngrok http 5173</code>) — the <code>*.ngrok.io</code> /
+            <code>*.ngrok-free.app</code> URL is also exempt.
+          </p>
+          <p>
+            <strong>For production on <code>navigation.ffly.site</code>:</strong>
+            contact <a href="mailto:support@zappar.com">support@zappar.com</a>{" "}
+            (or your ZapWorks account manager) to register
+            <code>navigation.ffly.site</code> for the
+            Enterprise / Distribution self-hosting license. See{" "}
+            <a
+              href="https://docs.zap.works/universal-ar/licensing/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              docs.zap.works/universal-ar/licensing
+            </a>
+            .
+          </p>
+        </div>
+
         <p className="foot">
-          Built with React, Vite, and AR.js. Works on iOS Safari and Android Chrome.
+          Built with React, Vite, and Zappar Universal AR. Works on iOS Safari and Android Chrome.
         </p>
       </div>
     </>
