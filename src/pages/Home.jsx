@@ -55,16 +55,15 @@ export default function Home() {
         <div className="card">
           <h2>How it works.</h2>
           <p>
-            Each QR sticker encodes a URL like{" "}
+            Each poster has a normal QR code that opens{" "}
             <code>/ar?from=QR_A1&amp;to=room-301</code>. When the phone's
-            camera app decodes it, the browser opens this React app. AR.js
-            then finds the same QR sticker in the camera view and anchors a
-            3D arrow to it, pointing at the destination based on an indoor
-            graph.
+            camera app scans it, the browser opens this React app. Zappar
+            image tracking then locks onto the poster itself and anchors a
+            3D arrow to it, pointing at the destination.
           </p>
           <p>
-            No GPS. No app install. No backend. The sticker is both the
-            link and the tracking marker.
+            No GPS. No app install. No backend. The poster is both the
+            link and the tracking target.
           </p>
         </div>
 
@@ -72,7 +71,7 @@ export default function Home() {
         <div className="card dark">
           <h2>Three things you need.</h2>
           <ol>
-            <li>A printed QR sticker at every decision point.</li>
+            <li>A printed poster at every decision point.</li>
             <li>An indoor graph of waypoints and rooms.</li>
             <li>This React app hosted on any static host with HTTPS.</li>
           </ol>
@@ -99,7 +98,7 @@ export default function Home() {
         </div>
 
         <p className="foot">
-          Built with React, Vite, and AR.js. Works on iOS Safari and Android Chrome.
+          Built with React, Vite, and Zappar Universal AR. Works on iOS Safari and Android Chrome.
         </p>
       </div>
     </>

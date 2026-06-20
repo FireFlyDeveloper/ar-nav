@@ -7,8 +7,9 @@ import { Link } from "react-router-dom";
  * Print-friendly waypoint poster generator.
  *
  * Each poster is a self-contained printable card containing:
- *   - a QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
+ *   - a normal QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
  *   - the waypoint's name and ID
+ *   - a note that the poster image itself is the Zappar tracking target
  *
  * The default destination is hard-coded below; change it for the venue
  * or extend the page to choose per waypoint.
@@ -49,7 +50,7 @@ export default function QRPoster() {
 
       <div className="app">
         <section className="hero" style={{ padding: "64px 0 32px" }}>
-          <h1 style={{ fontSize: 40 }}>Print stickers.</h1>
+          <h1 style={{ fontSize: 40 }}>Print posters.</h1>
           <p className="sub">
             One card per waypoint. Stick them on walls at corridor intersections.
           </p>
@@ -74,7 +75,12 @@ export default function QRPoster() {
           </div>
           <p style={{ marginTop: 12, fontSize: 14 }}>
             Tip: in the print dialog enable "Background graphics" and set
-            margins to "None" for clean stickers.
+            margins to "None" for clean posters.
+          </p>
+          <p style={{ marginTop: 12, fontSize: 14, color: "var(--color-ink-muted-80)" }}>
+            <strong>Important:</strong> The QR code only opens the web page.
+            The poster image itself must be converted to a Zappar target file
+            ({".zpt"}) and placed in <code>public/targets/</code> for AR tracking to work.
           </p>
         </div>
 
@@ -90,7 +96,7 @@ export default function QRPoster() {
         </div>
 
         <p className="foot">
-          AR Nav · Sticker printer
+          AR Nav · Poster printer
         </p>
       </div>
     </>

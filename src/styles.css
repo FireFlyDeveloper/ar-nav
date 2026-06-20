@@ -363,24 +363,7 @@ label {
 .dot.dest { background: var(--color-ink); }
 
 /* =============================================================================
-   AR view chrome — launch panel + floating overlays
-
-   Official AR.js marker examples use:
-     <body style="margin : 0px; overflow: hidden;">
-     <a-scene embedded arjs="sourceType: webcam; ...">
-       <a-marker type="barcode" value="N">...</a-marker>
-       <a-entity camera></a-entity>
-     </a-scene>
-
-   AR.js owns and injects the webcam element as <video id="arjs-video"> into
-   document.body. Its source code gives that video z-index:-2 and then sizes
-   document.body from the video in its resize path. In a React app, #root and
-   our fixed AR stage are real painted elements; leaving AR.js's negative
-   z-index video behind them produces the reported black viewport/black region.
-
-   Keep the official marker setup and let AR.js own the camera, but place the
-   injected video in the visible fullscreen layer and the transparent A-Frame
-   WebGL canvas above it. No manually managed <video> is created here.
+   AR view chrome — Zappar canvas + launch panel + floating overlays
    ============================================================================= */
 html, body, #root {
   height: 100%;
@@ -403,51 +386,22 @@ body:has(.ar-stage) {
   background: #000;
 }
 
-/* AR.js injects this element into <body>, not inside .ar-stage. Override only
-   placement/stacking so the official webcam source remains visible behind the
-   transparent A-Frame canvas in React. */
-#arjs-video {
+/* Zappar canvas fills the viewport */
+.ar-page {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.ar-canvas,
+.ar-page canvas {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
+  inset: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  margin: 0 !important;
-  object-fit: cover !important;
-  z-index: 1 !important;
 }
 
-/* The scene itself and A-Frame's internal divs fill the stage. */
-.ar-scene-mount,
-.ar-scene-mount > a-scene,
-.ar-scene-mount > a-scene > div,
-.ar-stage > a-scene,
-.ar-stage > a-scene > div {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-}
-
-/* The transparent WebGL canvas A-Frame creates must fill the scene, with no
-   letterboxing, so marker content overlays the fullscreen AR.js webcam feed. */
-.ar-stage canvas,
-.ar-scene-mount canvas {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  display: block !important;
-  object-fit: cover !important;
-  background: transparent !important;
-  z-index: 2 !important;
-}
-
+/* Launch panel */
 .ar-launch {
   position: fixed;
   inset: 0;
@@ -487,11 +441,55 @@ body:has(.ar-stage) {
   color: rgba(255, 255, 255, 0.5);
 }
 
-.ar-floating-bar {
+/* AR overlay — glass nav style, above canvas */
+.ar-overlay {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.ar-overlay-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  pointer-events: auto;
+}
+
+.ar-status-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ar-status-main {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.24;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ar-status-meta {
+  font-size: 12px;
+  opacity: 0.7;
+  line-height: 1.3;
+  color: #fff;
+}
+
+.ar-overlay-bottom {
+  display: flex;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.ar-floating-bar {
   background: rgba(28, 28, 30, 0.8);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -500,7 +498,6 @@ body:has(.ar-stage) {
   display: flex;
   align-items: center;
   gap: 16px;
-  z-index: 15;
   color: #fff;
 }
 .ar-floating-bar-text {
@@ -513,23 +510,6 @@ body:has(.ar-stage) {
   padding-left: 16px;
   border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
-
-.ar-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0));
-  color: var(--color-on-dark);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  pointer-events: none;
-}
-.ar-overlay .row { pointer-events: auto; }
-.ar-overlay .who  { font-size: 17px; font-weight: 600; line-height: 1.24; }
-.ar-overlay .meta { font-size: 12px; opacity: 0.7; line-height: 1.3; margin-top: 2px; }
-.ar-overlay .btn  { font-size: 14px; padding: 8px 16px; }
 
 .hint {
   position: fixed;
