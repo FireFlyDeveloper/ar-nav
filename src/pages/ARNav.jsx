@@ -171,23 +171,32 @@ function ARScene({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // ─── Step 1: Create the <video> element up front ────────────────
-    // AR.js's webcam-texture path looks for an existing video via the
-    // selector in the second constructor arg, OR picks up <video id="arjs-video">
-    // from the DOM. By creating it ourselves we side-step the race where
-    // AR.js's own getUserMedia call fails inside a non-gesture context
-    // and the video ends up orphaned in memory.
+    // ─── Step 1: Prime the camera permission ────────────────────────
+    // The browser's getUserMedia must be invoked inside a user-gesture
+    // context. We arrived here from setStarted(true) → onClick, but
+    // that single chain is sometimes considered "expired" by the
+    // time AR.js's nested init runs. We solve this by requesting
+    // getUserMedia ourselves FIRST, in the same call stack as the
+    // click. The <video> we create here is given the same id
+    // (#arjs-video) AR.js looks for, so it adopts it as the source
+    // and the marker detection pipeline runs against our stream.
+    //
+    // This works around the AR.js issue where the <video> is
+    // orphaned in memory when getUserMedia fails silently inside
+    // AR.js's own init.
     const video = document.createElement("video");
     video.id = "arjs-video";
     video.setAttribute("autoplay", "");
     video.setAttribute("playsinline", "");
     video.muted = true;
+    // AR.js positions the <video> at z-index:-2 by default (so the
+    // WebGL canvas overlays it). We flip that with CSS below to
+    // make the live feed actually visible.
     video.style.cssText =
       "position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:1;display:block;";
     document.body.appendChild(video);
     videoRef.current = video;
 
-    // ─── Step 2: Request the camera, inside the user-gesture context ─
     let cancelled = false;
     (async () => {
       try {
@@ -215,20 +224,24 @@ function ARScene({
     })();
 
     // ─── Step 3: Build the A-Frame scene ────────────────────────────
+    // IMPORTANT: do NOT use videoTexture:true — that swaps to the
+    // "WebcamTexture" branch which renders the camera as a fullscreen
+    // plane and has NO marker detection. We need the default artoolkit
+    // pipeline (artoolkit's ArController + ArMarkerControls) so that
+    // <a-marker> can fire markerFound. AR.js will create its own
+    // <video id="arjs-video"> and append it to body inside the
+    // getUserMedia success callback — which fires only because we got
+    // here from a user-gesture click.
     const sceneEl = document.createElement("a-scene");
     sceneEl.setAttribute("embedded", "");
     sceneEl.setAttribute("vr-mode-ui", "enabled: false");
     sceneEl.setAttribute("renderer", "logarithmicDepthBuffer: true; alpha: true;");
-    // videoTexture:true tells AR.js to use the <video> element on the DOM
-    // as the source instead of requesting its own camera. We pass the
-    // selector to be extra explicit. sourceType: webcam keeps the default
-    // constraints consistent.
     sceneEl.setAttribute(
       "arjs",
-      "sourceType: webcam; videoTexture: true; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
+      "sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
     );
     sceneEl.style.cssText =
-      "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2;";
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;";
     sceneRef.current = sceneEl;
 
     // Camera entity (required for AR.js)
@@ -289,15 +302,10 @@ function ARScene({
     });
 
     // ─── Step 4: Mount the scene ────────────────────────────────────
-    // Defer to a microtask so the click-handler call stack is still
-    // considered "active" for any further getUserMedia invocations.
-    const t = setTimeout(() => {
-      mountRef.current.appendChild(sceneEl);
-    }, 0);
+    mountRef.current.appendChild(sceneEl);
 
     return () => {
       cancelled = true;
-      clearTimeout(t);
       // Stop the camera stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((tr) => tr.stop());
