@@ -393,7 +393,8 @@ html, body, #root {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: #000;
+  background: transparent;
+  z-index: 2;
   color: #fff;
   overflow: hidden;
 }
@@ -431,6 +432,7 @@ body:has(.ar-stage) {
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
+  background: transparent !important;
 }
 
 /* The transparent WebGL canvas A-Frame creates must fill the scene, with no
