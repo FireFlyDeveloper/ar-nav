@@ -207,6 +207,7 @@ function ARScene({
     sceneEl.setAttribute("embedded", "");
     sceneEl.setAttribute("vr-mode-ui", "enabled: false");
     sceneEl.setAttribute("renderer", "logarithmicDepthBuffer: true; alpha: true;");
+    sceneEl.setAttribute("background", "transparent");
     sceneEl.setAttribute(
       "arjs",
       "sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false; trackingBackend: artoolkit;"
