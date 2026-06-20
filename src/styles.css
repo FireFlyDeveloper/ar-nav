@@ -364,13 +364,71 @@ label {
 
 /* =============================================================================
    AR view chrome — launch panel + floating overlays
+
+   The <a-scene> in "embedded" mode lives inside the document flow and
+   by default resizes itself to a 16:9 letterboxed box. For fullscreen
+   AR we need the scene AND its inner <canvas> AND A-Frame's
+   <canvas>-wrapping divs to all be exactly 100vw × 100vh with no
+   letterboxing — otherwise the user sees the WebGL feed (which has
+   the camera as a VideoTexture) sitting in the top 70% of the screen
+   and a black bar at the bottom.
+
+   See AR.js official docs:
+     https://ar-js-org.github.io/AR.js-Docs/marker-based/
+   The recommended setup is `style="width: 100vw; height: 100vh; margin: 0"`
+   on the <a-scene> AND CSS that forces the .a-canvas wrapper div to
+   fill the scene.
+
+   Also: html, body, #root must be 100% height. AR.js's
+   "copyElementSizeTo(document.body)" is what makes the <video> in
+   AR.js's source match the viewport — if document.body is shorter
+   than the viewport the camera image gets squished.
    ============================================================================= */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #000;
+}
+
 .ar-stage {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
   background: #000;
   z-index: 0;
   color: #fff;
+  overflow: hidden;
+}
+
+/* The scene itself and A-Frame's internal divs fill the stage. */
+.ar-scene-mount,
+.ar-scene-mount > a-scene,
+.ar-scene-mount > a-scene > div,
+.ar-stage > a-scene,
+.ar-stage > a-scene > div {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+/* The WebGL canvas A-Frame creates has the VideoTexture on it.
+   Force it to fill the scene, no letterboxing. */
+.ar-stage canvas,
+.ar-scene-mount canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: block !important;
+  object-fit: cover !important;
 }
 
 .ar-launch {
@@ -450,32 +508,28 @@ label {
    the live webcam feed and is piped to a Three.js VideoTexture. The
    <video> itself is hidden (display:none in the AR.js stylesheet) — the
    user sees the feed through the WebGL canvas. So we just need to make
-   sure the canvas fills the scene. */
-/* The <video id="arjs-video"> is appended to body by the AR scene and
-   is the LIVE camera feed. It's z-index:1 (above the AR canvas) so the
-   user sees the actual webcam, not a black WebGL canvas. The 3D arrow
-   and waypoint markers render on the WebGL canvas above (z-index:2). */
-#arjs-video {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  object-fit: cover !important;
-  z-index: 1 !important;
-  display: block !important;
-  background: #000;
-}
+   .ar-scene-mount,
+   .ar-scene-mount > a-scene,
+   .ar-scene-mount > a-scene > div,
+   .ar-scene-mount canvas {
+     width: 100vw !important;
+     height: 100vh !important;
+   }
 
-.ar-stage video,
-.ar-stage canvas {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-}
+   /* AR.js injects a <video id="arjs-video"> into document.body. It carries
+      the live webcam feed and is piped to a Three.js VideoTexture. The
+      <video> itself is hidden (display:none in the AR.js stylesheet) — the
+      user sees the feed through the WebGL canvas. So we just need to make
+      sure the canvas fills the scene. */
+   .ar-stage video,
+   .ar-stage canvas {
+     position: absolute !important;
+     top: 0 !important;
+     left: 0 !important;
+     width: 100% !important;
+     height: 100% !important;
+     object-fit: cover !important;
+   }
 
 .ar-overlay {
   position: fixed;
