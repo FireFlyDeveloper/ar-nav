@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
  * Each poster is a self-contained printable card containing:
  *   - a normal QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
  *   - the waypoint's name and ID
- *   - a note that the poster image itself is the Zappar tracking target
+ *   - a note that the poster image itself is the MindAR tracking target
  *
  * The default destination is hard-coded below; change it for the venue
  * or extend the page to choose per waypoint.
@@ -79,8 +79,8 @@ export default function QRPoster() {
           </p>
           <p style={{ marginTop: 12, fontSize: 14, color: "var(--color-ink-muted-80)" }}>
             <strong>Important:</strong> The QR code only opens the web page.
-            The poster image itself must be converted to a Zappar target file
-            ({".zpt"}) and placed in <code>public/targets/</code> for AR tracking to work.
+            The poster image itself must be converted to a MindAR target file
+            ({".mind"}) and placed in <code>public/targets/</code> for AR tracking to work.
           </p>
         </div>
 

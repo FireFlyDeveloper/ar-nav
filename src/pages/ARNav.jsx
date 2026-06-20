@@ -1,30 +1,33 @@
-import { useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import {
-  ZapparCanvas,
-  ZapparCamera,
-  ImageTracker,
-  BrowserCompatibility,
-} from "@zappar/zappar-react-three-fiber";
+import * as THREE from "three";
+import { MindARThree } from "mind-ar/dist/mindar-image-three.prod.js";
 import { findPath, directionYaw, pathLength, NODES } from "../indoorGraph.js";
 
 /**
- * 3D arrow rendered inside the Zappar tracker.
+ * 3D arrow rendered as a Three.js group.
  * Red (#ff3b30) for high contrast against real-world camera feed.
  */
-function Arrow({ headingDegrees = 0 }) {
-  return (
-    <group rotation={[0, (headingDegrees * Math.PI) / 180, 0]}>
-      <mesh position={[0, 0, -0.35]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.8, 24]} />
-        <meshStandardMaterial color="#ff3b30" />
-      </mesh>
-      <mesh position={[0, 0, -0.85]} rotation={[-Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.16, 0.35, 32]} />
-        <meshStandardMaterial color="#ff3b30" />
-      </mesh>
-    </group>
+function createArrowGroup(headingDegrees = 0) {
+  const group = new THREE.Group();
+  group.rotation.y = (headingDegrees * Math.PI) / 180;
+
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.8, 24),
+    new THREE.MeshStandardMaterial({ color: "#ff3b30" })
   );
+  shaft.rotation.x = Math.PI / 2;
+  shaft.position.z = -0.35;
+
+  const head = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 0.35, 32),
+    new THREE.MeshStandardMaterial({ color: "#ff3b30" })
+  );
+  head.rotation.x = -Math.PI / 2;
+  head.position.z = -0.85;
+
+  group.add(shaft, head);
+  return group;
 }
 
 export default function ARNav() {
@@ -42,7 +45,11 @@ export default function ARNav() {
 
   const [started, setStarted] = useState(false);
   const [targetVisible, setTargetVisible] = useState(false);
-  const camera = useRef();
+  const [diagStatus, setDiagStatus] = useState("idle"); // idle | loading | ready | found | lost | error
+  const [diagMessage, setDiagMessage] = useState("");
+
+  const containerRef = useRef(null);
+  const mindarRef = useRef(null);
 
   if (!NODES[from] || !NODES[to]) {
     return (
@@ -68,8 +75,93 @@ export default function ARNav() {
     );
   }
 
-  const targetFile = `/targets/${from}.zpt`;
+  const targetFile = `/targets/${from}.mind`;
   const headingDegrees = (yaw * 180) / Math.PI;
+
+  useEffect(() => {
+    if (!started || !containerRef.current) return;
+
+    let mounted = true;
+    let mindarThree = null;
+
+    const init = async () => {
+      try {
+        setDiagStatus("loading");
+        setDiagMessage("Initializing AR camera…");
+
+        mindarThree = new MindARThree({
+          container: containerRef.current,
+          imageTargetSrc: targetFile,
+          uiLoading: "no",
+          uiScanning: "no",
+          uiError: "no",
+        });
+        mindarRef.current = mindarThree;
+
+        const { renderer, scene, camera } = mindarThree;
+
+        // Build arrow and attach to anchor
+        const arrow = createArrowGroup(headingDegrees);
+        const anchor = mindarThree.addAnchor(0);
+        anchor.group.add(arrow);
+
+        anchor.onTargetFound = () => {
+          if (!mounted) return;
+          setTargetVisible(true);
+          setDiagStatus("found");
+          setDiagMessage(`Waypoint detected: ${from}`);
+        };
+        anchor.onTargetLost = () => {
+          if (!mounted) return;
+          setTargetVisible(false);
+          setDiagStatus("lost");
+          setDiagMessage(`Searching for ${from} poster…`);
+        };
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(2.5, 8, 5);
+        scene.add(dirLight);
+
+        setDiagStatus("ready");
+        setDiagMessage("Point camera at the poster");
+
+        await mindarThree.start();
+
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+      } catch (err) {
+        console.error("MindAR init error:", err);
+        if (!mounted) return;
+        setDiagStatus("error");
+        const msg = err?.message || String(err);
+        if (msg.includes("fetch") || msg.includes("404") || msg.includes("network")) {
+          setDiagMessage(`Target file not loaded: ${targetFile}`);
+        } else if (msg.includes("Permission") || msg.includes("NotAllowed")) {
+          setDiagMessage("Camera permission denied. Please allow camera access.");
+        } else if (msg.includes("NotFound")) {
+          setDiagMessage("Camera not found. Ensure a camera is available.");
+        } else {
+          setDiagMessage(`AR error: ${msg}`);
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+      if (mindarRef.current) {
+        try {
+          mindarRef.current.stop();
+        } catch (e) {
+          // ignore cleanup errors
+        }
+        mindarRef.current = null;
+      }
+    };
+  }, [started, from, headingDegrees, targetFile]);
 
   return (
     <div className="ar-stage">
@@ -84,33 +176,36 @@ export default function ARNav() {
 
       {started && (
         <div className="ar-page">
-          <BrowserCompatibility />
-          <ZapparCanvas className="ar-canvas">
-            <ZapparCamera ref={camera} />
-            <ImageTracker
-              targetImage={targetFile}
-              camera={camera}
-              onVisible={() => setTargetVisible(true)}
-              onNotVisible={() => setTargetVisible(false)}
-            >
-              <group position={[0, 0.2, 0]} scale={[0.8, 0.8, 0.8]}>
-                <Arrow headingDegrees={headingDegrees} />
-              </group>
-            </ImageTracker>
-            <ambientLight intensity={1} />
-            <directionalLight position={[2.5, 8, 5]} intensity={1.5} />
-          </ZapparCanvas>
+          {/* MindAR injects video + canvas into this container */}
+          <div ref={containerRef} className="ar-canvas-container" />
 
           <div className="ar-overlay">
             <div className="ar-overlay-top">
               <div className="ar-status-block">
                 <div className="ar-status-main">
-                  <span className={`status-dot ${targetVisible ? "ok" : "scan"}`} />
-                  {targetVisible ? "Marker found" : "Searching for marker"}
+                  <span
+                    className={`status-dot ${
+                      diagStatus === "found"
+                        ? "ok"
+                        : diagStatus === "error"
+                        ? "err"
+                        : "scan"
+                    }`}
+                  />
+                  {diagStatus === "found"
+                    ? "Marker found"
+                    : diagStatus === "error"
+                    ? "AR error"
+                    : diagStatus === "loading"
+                    ? "Starting AR…"
+                    : "Searching for marker"}
                 </div>
                 <div className="ar-status-meta">
                   {from} → {to} · {Math.round(totalMeters)} m
                 </div>
+                {diagMessage && (
+                  <div className="ar-status-diag">{diagMessage}</div>
+                )}
               </div>
               <Link to="/" className="btn utility">
                 Exit
@@ -120,12 +215,18 @@ export default function ARNav() {
             <div className="ar-overlay-bottom">
               <div className="ar-floating-bar">
                 <span className="ar-floating-bar-text">
-                  {targetVisible
-                    ? `Follow arrow toward ${to}`
+                  {diagStatus === "found"
+                    ? `Navigating to ${to}`
+                    : diagStatus === "error"
+                    ? "Check diagnostics above"
                     : `Point camera at ${from} poster`}
                 </span>
                 <span className="ar-floating-bar-meta">
-                  {targetVisible ? "Tracking active" : "Scanning…"}
+                  {diagStatus === "found"
+                    ? "Tracking active"
+                    : diagStatus === "error"
+                    ? "Stopped"
+                    : "Scanning…"}
                 </span>
               </div>
             </div>

@@ -363,7 +363,7 @@ label {
 .dot.dest { background: var(--color-ink); }
 
 /* =============================================================================
-   AR view chrome — Zappar canvas + launch panel + floating overlays
+   AR view chrome — MindAR canvas + launch panel + floating overlays
    ============================================================================= */
 html, body, #root {
   height: 100%;
@@ -386,11 +386,20 @@ body:has(.ar-stage) {
   background: #000;
 }
 
-/* Zappar canvas fills the viewport */
+/* MindAR canvas fills the viewport */
 .ar-page {
   position: fixed;
   inset: 0;
   background: #000;
+}
+
+.ar-canvas-container,
+.ar-canvas-container canvas,
+.ar-canvas-container video {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
 }
 
 .ar-canvas,
@@ -483,6 +492,14 @@ body:has(.ar-stage) {
   color: #fff;
 }
 
+.ar-status-diag {
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 2px;
+  max-width: 260px;
+}
+
 .ar-overlay-bottom {
   display: flex;
   justify-content: center;
@@ -539,6 +556,7 @@ body:has(.ar-stage) {
 }
 .status-dot.ok   { background: #34c759; box-shadow: 0 0 8px #34c75980; }
 .status-dot.scan { background: var(--color-primary-on-dark); animation: pulse 1.4s infinite; }
+.status-dot.err  { background: #ff3b30; box-shadow: 0 0 8px #ff3b3080; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

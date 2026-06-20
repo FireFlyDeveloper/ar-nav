@@ -57,7 +57,7 @@ export default function Home() {
           <p>
             Each poster has a normal QR code that opens{" "}
             <code>/ar?from=QR_A1&amp;to=room-301</code>. When the phone's
-            camera app scans it, the browser opens this React app. Zappar
+            camera app scans it, the browser opens this React app. MindAR
             image tracking then locks onto the poster itself and anchors a
             3D arrow to it, pointing at the destination.
           </p>
@@ -98,7 +98,7 @@ export default function Home() {
         </div>
 
         <p className="foot">
-          Built with React, Vite, and Zappar Universal AR. Works on iOS Safari and Android Chrome.
+          Built with React, Vite, and MindAR. Works on iOS Safari and Android Chrome.
         </p>
       </div>
     </>
