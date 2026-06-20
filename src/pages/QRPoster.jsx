@@ -6,14 +6,23 @@ import { Link } from "react-router-dom";
 /**
  * Print-friendly waypoint poster generator.
  *
- * Each poster is a self-contained printable card containing:
- *   - a QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
- *   - the waypoint's name and ID
+ * Each poster contains TWO codes:
+ *   1. A QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
+ *      — scanned with the phone's native camera app to open the browser.
+ *   2. An AR.js barcode marker image (the 3x3 black/white grid)
+ *      — detected by the AR camera to anchor the 3D arrow.
  *
- * The default destination is hard-coded below; change it for the venue
- * or extend the page to choose per waypoint.
+ * AR.js cannot detect standard QR codes as tracking targets; it needs its
+ * own barcode markers. So the user scans the QR to launch the app, then
+ * points the AR camera at the barcode grid to see the arrow.
  */
 const DEFAULT_DEST = "room-301";
+
+const WAYPOINT_IDS = Object.keys(NODES).filter((id) => id.startsWith("QR_"));
+
+function barcodeUrl(idx) {
+  return `${window.location.origin}/markers/${idx}.png`;
+}
 
 export default function QRPoster() {
   const [base, setBase] = useState("");
@@ -32,7 +41,8 @@ export default function QRPoster() {
           scale: 6,
           color: { dark: "#000000", light: "#ffffff" },
         });
-        return { id, node, dataUrl, target };
+        const barcodeIdx = WAYPOINT_IDS.indexOf(id);
+        return { id, node, dataUrl, target, barcodeIdx };
       })
     ).then(setTiles);
   }, []);
@@ -58,10 +68,10 @@ export default function QRPoster() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div>
-              <h3>Target URL</h3>
+              <h3>How to use the poster</h3>
               <p style={{ marginBottom: 0 }}>
-                Each QR encodes{" "}
-                <code>{base || "/ar"}?from=ID&amp;to={DEFAULT_DEST}</code>
+                Each poster has a <strong>QR code</strong> (launch the app) and
+                an <strong>AR barcode marker</strong> (anchor for the 3D arrow).
               </p>
             </div>
             <button
@@ -72,6 +82,12 @@ export default function QRPoster() {
               Print these
             </button>
           </div>
+          <ol style={{ marginTop: 12, fontSize: 14, paddingLeft: 18 }}>
+            <li>Scan the QR code with your phone's camera app to open the AR page.</li>
+            <li>Tap "Start camera".</li>
+            <li>Point the camera at the <strong>barcode marker</strong> (the black-and-white grid) — not the QR code.</li>
+            <li>The 3D arrow appears, pointing toward your destination.</li>
+          </ol>
           <p style={{ marginTop: 12, fontSize: 14 }}>
             Tip: in the print dialog enable "Background graphics" and set
             margins to "None" for clean stickers.
@@ -79,9 +95,22 @@ export default function QRPoster() {
         </div>
 
         <div className="qr-grid">
-          {tiles.map(({ id, node, dataUrl, target }) => (
+          {tiles.map(({ id, node, dataUrl, target, barcodeIdx }) => (
             <div className="qr-tile" key={id}>
-              <img src={dataUrl} alt={`QR for ${id}`} />
+              <div className="row" style={{ gap: 16, justifyContent: "center" }}>
+                <div>
+                  <img src={dataUrl} alt={`QR for ${id}`} style={{ width: 120, height: 120 }} />
+                  <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>Scan to launch</div>
+                </div>
+                <div>
+                  <img
+                    src={barcodeUrl(barcodeIdx)}
+                    alt={`Barcode marker ${barcodeIdx} for ${id}`}
+                    style={{ width: 120, height: 120, imageRendering: "pixelated" }}
+                  />
+                  <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>Point AR camera here</div>
+                </div>
+              </div>
               <h4>{node.name}</h4>
               <div className="id">{id} → {DEFAULT_DEST}</div>
               <div className="url">{target}</div>
