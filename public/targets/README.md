@@ -1,6 +1,12 @@
 # MindAR Image Tracking Targets
 
-This folder should contain `.mind` target files for each waypoint poster.
+This folder contains `.mind` target files for each waypoint poster.
+
+## Current targets
+
+| Waypoint | Source image | Compiled target |
+|---|---|---|
+| QR_A1 | `QR_A1.png` | `QR_A1.mind` |
 
 ## How to generate a target file
 
@@ -10,7 +16,7 @@ This folder should contain `.mind` target files for each waypoint poster.
 
 2. Compile the image into a `.mind` target using the MindAR target compiler:
    - Online compiler: https://hiukim.github.io/mind-ar-js-doc/tools/compile/
-   - CLI: `npx mind-ar@latest target-compile ./QR_A1.png ./QR_A1.mind`
+   - Or use the helper script in the project: `node scripts/compile-puppeteer3.mjs public/targets/QR_A1.png public/targets/QR_A1.mind`
 
 3. Place the generated `.mind` file here, named exactly after the waypoint ID:
 
@@ -23,13 +29,9 @@ This folder should contain `.mind` target files for each waypoint poster.
 
 4. Rebuild the app (`npm run build`) so the files are copied into `dist/targets/`.
 
-## Current status
-
-No `.mind` files are checked in yet. The AR page will show a diagnostic message
-("Target file not loaded") until a valid target file is provided and the poster is in view.
-
 ## Demo route
 
 The default demo route expects:
 - `public/targets/QR_A1.mind` for the starting waypoint
+- `public/targets/QR_A1.png` as the poster image
 - URL: `/ar?from=QR_A1&to=room-301`

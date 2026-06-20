@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>MindAR Compiler</title>
+  <script type="module">
+    import { CompilerBase } from '../node_modules/mind-ar/src/image-target/compiler-base.js';
+    import { buildTrackingImageList } from '../node_modules/mind-ar/src/image-target/image-list.js';
+    import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm.js';
+    import * as msgpack from '../node_modules/@msgpack/msgpack/dist.es5+esm/msgpack.js';
+
+    class BrowserCompiler extends CompilerBase {
+      createProcessCanvas(img) {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        return canvas;
+      }
+
+      compileTrack({ progressCallback, targetImages, basePercent }) {
+        return new Promise(async (resolve) => {
+          const results = [];
+          for (let i = 0; i < targetImages.length; i++) {
+            const trackingImageList = buildTrackingImageList(targetImages[i]);
+            results.push(trackingImageList);
+            progressCallback(basePercent + (i + 1) / targetImages.length * basePercent / 2);
+          }
+          resolve(results);
+        });
+      }
+    }
+
+    async function compileImage(src) {
+      await tf.setBackend('webgl');
+      await tf.ready();
+
+      const img = new Image();
+      img.src = src;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const compiler = new BrowserCompiler();
+      await compiler.compileImageTargets([img], (p) => {
+        console.log('Progress:', p.toFixed(1) + '%');
+      });
+
+      const dataList = [];
+      for (let i = 0; i < compiler.data.length; i++) {
+        dataList.push({
+          targetImage: {
+            width: compiler.data[i].targetImage.width,
+            height: compiler.data[i].targetImage.height,
+          },
+          trackingData: compiler.data[i].trackingData,
+          matchingData: compiler.data[i].matchingData
+        });
+      }
+
+      const buffer = msgpack.encode({
+        v: 2,
+        dataList
+      });
+
+      return buffer;
+    }
+
+    window.compileImage = compileImage;
+  </script>
+</head>
+<body>
+  <h1>MindAR Target Compiler</h1>
+  <div id="status">Loading...</div>
+  <script type="module">
+    document.getElementById('status').textContent = 'Ready';
+  </script>
+</body>
+</html>

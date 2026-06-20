@@ -91,6 +91,22 @@ export default function QRPoster() {
               <h4>{node.name}</h4>
               <div className="id">{id} → {DEFAULT_DEST}</div>
               <div className="url">{target}</div>
+              {/* Show the MindAR target image for this waypoint */}
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, color: "var(--color-ink-muted-48)", marginBottom: 6 }}>
+                  MindAR tracking target:
+                </div>
+                <img
+                  src={`/targets/${id}.png`}
+                  alt={`MindAR target for ${id}`}
+                  style={{
+                    width: "100%",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--color-hairline)",
+                  }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              </div>
             </div>
           ))}
         </div>

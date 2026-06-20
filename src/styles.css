@@ -564,6 +564,167 @@ body:has(.ar-stage) {
 }
 
 .divider { height: 1px; background: rgba(0, 0, 0, 0.08); margin: var(--space-md) 0; }
+
+/* --- AR target preview (launch panel) --------------------------------------- */
+.ar-target-preview { margin: 16px 0; text-align: left; }
+.ar-target-preview-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary-on-dark);
+  font: 600 14px/1.3 var(--font-text);
+  cursor: pointer;
+  padding: 0;
+}
+.ar-target-preview-content {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+}
+.ar-target-preview-content img {
+  width: 100%;
+  max-width: 280px;
+  border-radius: var(--radius-sm);
+  display: block;
+  margin: 0 auto;
+}
+.ar-target-preview-caption {
+  font: 400 13px/1.35 var(--font-text);
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* --- AR success pill -------------------------------------------------------- */
+.ar-success-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #34c759;
+  color: #fff;
+  font: 600 15px/1 var(--font-text);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  animation: successPop 0.35s ease;
+}
+@keyframes successPop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* --- AR success overlay (center card) --------------------------------------- */
+.ar-success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: successFadeIn 0.4s ease;
+}
+@keyframes successFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ar-success-card {
+  background: rgba(28, 28, 30, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-radius: var(--radius-lg);
+  padding: 28px 36px;
+  text-align: center;
+  color: #fff;
+  pointer-events: auto;
+}
+.ar-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #34c759;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  animation: successPulse 1.6s infinite;
+}
+@keyframes successPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.5); }
+  50%      { box-shadow: 0 0 0 12px rgba(52, 199, 89, 0); }
+}
+.ar-success-title {
+  font: 600 20px/1.25 var(--font-display);
+  margin-bottom: 6px;
+}
+.ar-success-route {
+  font: 400 15px/1.3 var(--font-text);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* --- AR stage list (diagnostics) -------------------------------------------- */
+.ar-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ar-stage-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.3 var(--font-text);
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 0.2s ease;
+}
+.ar-stage-item.ready { color: rgba(255, 255, 255, 0.95); }
+.ar-stage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.2s ease;
+}
+.ar-stage-dot.ready { background: #34c759; }
+
+/* --- AR target toggle & card (overlay) -------------------------------------- */
+.ar-target-toggle {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: var(--color-primary-on-dark);
+  font: 600 13px/1.3 var(--font-text);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.ar-target-card {
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  max-width: 220px;
+}
+.ar-target-card img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.ar-target-caption {
+  font: 400 11px/1.35 var(--font-text);
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* --- Timestamp -------------------------------------------------------------- */
+.ar-status-time {
+  font: 400 11px/1.3 var(--font-mono);
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
+}
+
 .foot {
   color: var(--color-ink-muted-48);
   font-size: 12px;

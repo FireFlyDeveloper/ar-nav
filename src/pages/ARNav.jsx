@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import * as THREE from "three";
 import { MindARThree } from "mind-ar/dist/mindar-image-three.prod.js";
@@ -6,7 +6,7 @@ import { findPath, directionYaw, pathLength, NODES } from "../indoorGraph.js";
 
 /**
  * 3D arrow rendered as a Three.js group.
- * Red (#ff3b30) for high contrast against real-world camera feed.
+ * Apple Action Blue (#0066cc) for the arrow to match the design system.
  */
 function createArrowGroup(headingDegrees = 0) {
   const group = new THREE.Group();
@@ -14,20 +14,31 @@ function createArrowGroup(headingDegrees = 0) {
 
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.04, 0.8, 24),
-    new THREE.MeshStandardMaterial({ color: "#ff3b30" })
+    new THREE.MeshStandardMaterial({ color: "#0066cc", emissive: "#0066cc", emissiveIntensity: 0.3 })
   );
   shaft.rotation.x = Math.PI / 2;
   shaft.position.z = -0.35;
 
   const head = new THREE.Mesh(
     new THREE.ConeGeometry(0.16, 0.35, 32),
-    new THREE.MeshStandardMaterial({ color: "#ff3b30" })
+    new THREE.MeshStandardMaterial({ color: "#0066cc", emissive: "#0066cc", emissiveIntensity: 0.3 })
   );
   head.rotation.x = -Math.PI / 2;
   head.position.z = -0.85;
 
   group.add(shaft, head);
   return group;
+}
+
+/**
+ * Checkmark icon SVG component.
+ */
+function CheckmarkIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
 }
 
 export default function ARNav() {
@@ -47,6 +58,8 @@ export default function ARNav() {
   const [targetVisible, setTargetVisible] = useState(false);
   const [diagStatus, setDiagStatus] = useState("idle"); // idle | loading | ready | found | lost | error
   const [diagMessage, setDiagMessage] = useState("");
+  const [lastEventTime, setLastEventTime] = useState(null);
+  const [showTargetHelp, setShowTargetHelp] = useState(false);
 
   const containerRef = useRef(null);
   const mindarRef = useRef(null);
@@ -76,7 +89,14 @@ export default function ARNav() {
   }
 
   const targetFile = `/targets/${from}.mind`;
+  const targetImage = `/targets/${from}.png`;
   const headingDegrees = (yaw * 180) / Math.PI;
+
+  const updateStatus = useCallback((status, message) => {
+    setDiagStatus(status);
+    setDiagMessage(message);
+    setLastEventTime(new Date().toLocaleTimeString());
+  }, []);
 
   useEffect(() => {
     if (!started || !containerRef.current) return;
@@ -86,8 +106,7 @@ export default function ARNav() {
 
     const init = async () => {
       try {
-        setDiagStatus("loading");
-        setDiagMessage("Initializing AR camera…");
+        updateStatus("loading", "Initializing AR camera…");
 
         mindarThree = new MindARThree({
           container: containerRef.current,
@@ -108,14 +127,12 @@ export default function ARNav() {
         anchor.onTargetFound = () => {
           if (!mounted) return;
           setTargetVisible(true);
-          setDiagStatus("found");
-          setDiagMessage(`Waypoint detected: ${from}`);
+          updateStatus("found", `Waypoint detected: ${from}`);
         };
         anchor.onTargetLost = () => {
           if (!mounted) return;
           setTargetVisible(false);
-          setDiagStatus("lost");
-          setDiagMessage(`Searching for ${from} poster…`);
+          updateStatus("lost", `Searching for ${from} poster…`);
         };
 
         scene.add(new THREE.AmbientLight(0xffffff, 1));
@@ -123,8 +140,7 @@ export default function ARNav() {
         dirLight.position.set(2.5, 8, 5);
         scene.add(dirLight);
 
-        setDiagStatus("ready");
-        setDiagMessage("Point camera at the poster");
+        updateStatus("ready", "Point camera at the poster");
 
         await mindarThree.start();
 
@@ -134,16 +150,21 @@ export default function ARNav() {
       } catch (err) {
         console.error("MindAR init error:", err);
         if (!mounted) return;
-        setDiagStatus("error");
-        const msg = err?.message || String(err);
+        // MindAR sometimes rejects with undefined; detect common causes from console or context
+        const rawMsg = err?.message || String(err);
+        const msg = rawMsg === "undefined" ? "" : rawMsg;
         if (msg.includes("fetch") || msg.includes("404") || msg.includes("network")) {
-          setDiagMessage(`Target file not loaded: ${targetFile}`);
+          updateStatus("error", `Target file not loaded: ${targetFile}`);
         } else if (msg.includes("Permission") || msg.includes("NotAllowed")) {
-          setDiagMessage("Camera permission denied. Please allow camera access.");
+          updateStatus("error", "Camera permission denied. Please allow camera access.");
         } else if (msg.includes("NotFound")) {
-          setDiagMessage("Camera not found. Ensure a camera is available.");
+          updateStatus("error", "Camera not found. Ensure a camera is available.");
+        } else if (!navigator.mediaDevices) {
+          updateStatus("error", "Camera unavailable. This page must be served over HTTPS or localhost.");
+        } else if (msg) {
+          updateStatus("error", `AR error: ${msg}`);
         } else {
-          setDiagMessage(`AR error: ${msg}`);
+          updateStatus("error", "AR initialization failed. Check camera permissions and HTTPS.");
         }
       }
     };
@@ -161,7 +182,14 @@ export default function ARNav() {
         mindarRef.current = null;
       }
     };
-  }, [started, from, headingDegrees, targetFile]);
+  }, [started, from, headingDegrees, targetFile, updateStatus]);
+
+  const statusStages = [
+    { key: "camera", label: "Camera ready", ready: diagStatus !== "idle" && diagStatus !== "loading" },
+    { key: "target", label: "Target file loaded", ready: diagStatus !== "idle" && diagStatus !== "loading" && diagStatus !== "error" },
+    { key: "waiting", label: `Waiting for ${from} target`, ready: diagStatus === "ready" || diagStatus === "lost" },
+    { key: "detected", label: `${from} detected`, ready: diagStatus === "found" },
+  ];
 
   return (
     <div className="ar-stage">
@@ -170,6 +198,7 @@ export default function ARNav() {
           fromId={from}
           toId={to}
           totalMeters={totalMeters}
+          targetImage={targetImage}
           onStart={() => setStarted(true)}
         />
       )}
@@ -183,22 +212,31 @@ export default function ARNav() {
             <div className="ar-overlay-top">
               <div className="ar-status-block">
                 <div className="ar-status-main">
-                  <span
-                    className={`status-dot ${
-                      diagStatus === "found"
-                        ? "ok"
-                        : diagStatus === "error"
-                        ? "err"
-                        : "scan"
-                    }`}
-                  />
-                  {diagStatus === "found"
-                    ? "Marker found"
-                    : diagStatus === "error"
-                    ? "AR error"
-                    : diagStatus === "loading"
-                    ? "Starting AR…"
-                    : "Searching for marker"}
+                  {diagStatus === "found" ? (
+                    <span className="ar-success-pill">
+                      <CheckmarkIcon size={16} />
+                      Waypoint detected
+                    </span>
+                  ) : (
+                    <>
+                      <span
+                        className={`status-dot ${
+                          diagStatus === "found"
+                            ? "ok"
+                            : diagStatus === "error"
+                            ? "err"
+                            : "scan"
+                        }`}
+                      />
+                      {diagStatus === "error"
+                        ? "AR error"
+                        : diagStatus === "loading"
+                        ? "Starting AR…"
+                        : diagStatus === "found"
+                        ? "Marker found"
+                        : "Searching for marker"}
+                    </>
+                  )}
                 </div>
                 <div className="ar-status-meta">
                   {from} → {to} · {Math.round(totalMeters)} m
@@ -206,11 +244,60 @@ export default function ARNav() {
                 {diagMessage && (
                   <div className="ar-status-diag">{diagMessage}</div>
                 )}
+                {lastEventTime && (
+                  <div className="ar-status-time">Last update: {lastEventTime}</div>
+                )}
+
+                {/* Stage indicators */}
+                <div className="ar-stage-list">
+                  {statusStages.map((stage) => (
+                    <div
+                      key={stage.key}
+                      className={`ar-stage-item ${stage.ready ? "ready" : ""}`}
+                    >
+                      <span className={`ar-stage-dot ${stage.ready ? "ready" : ""}`} />
+                      {stage.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Target thumbnail toggle */}
+                <button
+                  className="ar-target-toggle"
+                  onClick={() => setShowTargetHelp((s) => !s)}
+                >
+                  {showTargetHelp ? "Hide" : "Show"} target to point at
+                </button>
+
+                {showTargetHelp && (
+                  <div className="ar-target-card">
+                    <img src={targetImage} alt={`Target poster for ${from}`} />
+                    <div className="ar-target-caption">
+                      Point your camera at this exact poster
+                    </div>
+                  </div>
+                )}
               </div>
+
               <Link to="/" className="btn utility">
                 Exit
               </Link>
             </div>
+
+            {/* Success overlay when target found */}
+            {diagStatus === "found" && (
+              <div className="ar-success-overlay">
+                <div className="ar-success-card">
+                  <div className="ar-success-icon">
+                    <CheckmarkIcon size={32} />
+                  </div>
+                  <div className="ar-success-title">Waypoint detected: {from}</div>
+                  <div className="ar-success-route">
+                    Navigating to {to}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="ar-overlay-bottom">
               <div className="ar-floating-bar">
@@ -237,7 +324,9 @@ export default function ARNav() {
   );
 }
 
-function LaunchPanel({ fromId, toId, totalMeters, onStart }) {
+function LaunchPanel({ fromId, toId, totalMeters, targetImage, onStart }) {
+  const [showTarget, setShowTarget] = useState(false);
+
   return (
     <div className="ar-launch">
       <div className="ar-launch-card">
@@ -248,6 +337,26 @@ function LaunchPanel({ fromId, toId, totalMeters, onStart }) {
           <strong>{fromId}</strong> poster on the wall. A 3D arrow will appear
           pointing toward <strong>{toId}</strong>.
         </p>
+
+        {/* Target preview card */}
+        <div className="ar-target-preview">
+          <button
+            className="ar-target-preview-toggle"
+            onClick={() => setShowTarget((s) => !s)}
+          >
+            {showTarget ? "▾ Hide" : "▸ Show"} the exact target poster
+          </button>
+          {showTarget && (
+            <div className="ar-target-preview-content">
+              <img src={targetImage} alt={`Target poster for ${fromId}`} />
+              <div className="ar-target-preview-caption">
+                MindAR tracks this exact image. Print and stick this poster on
+                the wall, then point your camera at it.
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="ar-launch-cta">
           <button type="button" className="btn primary" onClick={onStart}>
             Start AR
