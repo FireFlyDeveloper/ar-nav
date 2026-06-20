@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { NODES } from "../indoorGraph.js";
+import { getNodes } from "../indoorGraph.js";
 
 /**
  * Landing page styled in the Apple design system:
@@ -9,7 +9,9 @@ import { NODES } from "../indoorGraph.js";
  *   - Pill CTAs (980px radius) — the signature Apple link shape
  */
 export default function Home() {
-  const sampleQrUrl = `${window.location.origin}/ar?from=QR_A1&to=room-301`;
+  const nodes = getNodes();
+  const sampleQrUrl = `${window.location.origin}/navigate?from=QR_A1&to=room-301`;
+  const sampleArUrl = `${window.location.origin}/ar?from=QR_A1&to=room-301`;
 
   return (
     <>
@@ -17,7 +19,8 @@ export default function Home() {
       <nav className="glass-nav">
         <span className="brand">AR Nav</span>
         <Link to="/">Overview</Link>
-        <Link to="/ar?from=QR_A1&to=room-301">Try AR</Link>
+        <Link to="/navigate?from=QR_A1&to=room-301">Navigate</Link>
+        <Link to="/mapper">Mapper</Link>
         <Link to="/posters">Print</Link>
         <span className="spacer" />
         <a href="https://github.com/FireFlyDeveloper/ar-nav" target="_blank" rel="noreferrer">
@@ -29,8 +32,8 @@ export default function Home() {
       <div className="sub-nav">
         Indoor Wayfinding
         <span className="spacer" />
-        <Link to="/ar?from=QR_A1&to=room-301" className="btn primary" style={{ fontSize: 14, padding: "8px 18px" }}>
-          Try AR <span className="chev">›</span>
+        <Link to="/navigate?from=QR_A1&to=room-301" className="btn primary" style={{ fontSize: 14, padding: "8px 18px" }}>
+          Try it <span className="chev">›</span>
         </Link>
       </div>
 
@@ -39,14 +42,17 @@ export default function Home() {
           <h1>AR Nav.</h1>
           <p className="sub">
             Indoor wayfinding that fits in a sticker. Scan with your phone,
-            follow the arrow.
+            follow the map.
           </p>
           <div className="row" style={{ justifyContent: "center" }}>
             <a className="btn primary" href={sampleQrUrl}>
-              Open AR view <span className="chev">›</span>
+              Open map view <span className="chev">›</span>
             </a>
-            <Link to="/posters" className="btn pill-link">
-              Print stickers
+            <a className="btn pill-link" href={sampleArUrl}>
+              AR guidance
+            </a>
+            <Link to="/mapper" className="btn pearl">
+              Mapper
             </Link>
           </div>
         </section>
@@ -56,15 +62,14 @@ export default function Home() {
           <h2>How it works.</h2>
           <p>
             Each QR sticker encodes a URL like{" "}
-            <code>/ar?from=QR_A1&amp;to=room-301</code>. When the phone's
-            camera app decodes it, the browser opens this React app. AR.js
-            then finds the same QR sticker in the camera view and anchors a
-            3D arrow to it, pointing at the destination based on an indoor
-            graph.
+            <code>/navigate?from=QR_A1&amp;to=room-301</code>. When the phone's
+            camera app decodes it, the browser opens this app and immediately
+            shows a 2D map with your current position and the route to your
+            destination.
           </p>
           <p>
-            No GPS. No app install. No backend. The sticker is both the
-            link and the tracking marker.
+            No GPS. No app install. No backend. The sticker is the "you are
+            here" pin — the route is calculated from a hand-editable indoor graph.
           </p>
         </div>
 
@@ -74,12 +79,12 @@ export default function Home() {
           <ol>
             <li>A printed QR sticker at every decision point.</li>
             <li>An indoor graph of waypoints and rooms.</li>
-            <li>This React app hosted on any static host with HTTPS.</li>
+            <li>This app hosted on any static host with HTTPS.</li>
           </ol>
           <p>
-            <a className="btn pill-link on-dark" href={sampleQrUrl}>
-              See it in action <span className="chev">›</span>
-            </a>
+            <Link className="btn pill-link on-dark" to="/mapper">
+              Build the graph <span className="chev">›</span>
+            </Link>
           </p>
         </div>
 
@@ -90,7 +95,7 @@ export default function Home() {
             <span><span className="dot dest" /> destination</span>
           </div>
           <ul>
-            {Object.entries(NODES).map(([id, n]) => (
+            {Object.entries(nodes).map(([id, n]) => (
               <li key={id}>
                 <code>{id}</code> — {n.name}
               </li>

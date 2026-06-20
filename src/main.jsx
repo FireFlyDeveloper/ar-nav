@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate as RouterNavigate } from "react-router-dom";
 import ARNav from "./pages/ARNav.jsx";
 import QRPoster from "./pages/QRPoster.jsx";
 import Home from "./pages/Home.jsx";
+import Mapper from "./pages/Mapper.jsx";
+import Navigate from "./pages/Navigate.jsx";
 import "./styles.css";
 
 // StrictMode is OFF on purpose: A-Frame + AR.js call getUserMedia at scene
@@ -18,12 +20,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* Production URL shape a QR sticker encodes:
-            https://<host>/ar?from=QR_A1&to=room-301
-          The QR is the "you are here" pin. The to= is the destination. */}
+      {/* QR scan opens the 2D map navigator — no camera required. */}
+      <Route path="/navigate" element={<Navigate />} />
+      {/* Optional AR guidance (camera + marker detection). */}
       <Route path="/ar" element={<ARNav />} />
+      <Route path="/mapper" element={<Mapper />} />
       <Route path="/posters" element={<QRPoster />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<RouterNavigate to="/" replace />} />
     </Routes>
   </BrowserRouter>
 );

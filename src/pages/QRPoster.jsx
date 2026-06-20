@@ -1,32 +1,34 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { NODES } from "../indoorGraph.js";
+import { getNodes } from "../indoorGraph.js";
 import { Link } from "react-router-dom";
 
 /**
- * Print-friendly waypoint poster generator.
+ * Print-friendly waypoint poster generator + QR management.
  *
  * Each poster is a self-contained printable card containing:
- *   - a QR code that encodes the absolute URL `/ar?from=ID&to=DEFAULT`
+ *   - a QR code that encodes the absolute URL `/navigate?from=ID&to=DEFAULT`
  *   - the waypoint's name and ID
- *
- * The default destination is hard-coded below; change it for the venue
- * or extend the page to choose per waypoint.
  */
 const DEFAULT_DEST = "room-301";
 
 export default function QRPoster() {
+  const nodes = getNodes();
   const [base, setBase] = useState("");
   const [tiles, setTiles] = useState([]);
+  const [globalDest, setGlobalDest] = useState(DEFAULT_DEST);
+  const [mode, setMode] = useState("navigate"); // navigate | ar
+
+  const waypoints = Object.entries(nodes).filter(([id]) => id.startsWith("QR_"));
+  const destinations = Object.entries(nodes).filter(([, n]) => n.type === "room" || n.type === "poi" || n.type === "exit");
 
   useEffect(() => {
-    const url = `${window.location.origin}/ar`;
+    const url = `${window.location.origin}/${mode}`;
     setBase(url);
 
-    const waypoints = Object.entries(NODES).filter(([id]) => id.startsWith("QR_"));
     Promise.all(
       waypoints.map(async ([id, node]) => {
-        const target = `${url}?from=${id}&to=${DEFAULT_DEST}`;
+        const target = `${url}?from=${encodeURIComponent(id)}&to=${encodeURIComponent(globalDest)}`;
         const dataUrl = await QRCode.toDataURL(target, {
           margin: 1,
           scale: 6,
@@ -35,14 +37,15 @@ export default function QRPoster() {
         return { id, node, dataUrl, target };
       })
     ).then(setTiles);
-  }, []);
+  }, [nodes, globalDest, mode]);
 
   return (
     <>
       <nav className="glass-nav">
         <Link to="/" className="brand">AR Nav</Link>
         <Link to="/">Overview</Link>
-        <Link to="/ar?from=QR_A1&to=room-301">Try AR</Link>
+        <Link to="/navigate?from=QR_A1&to=room-301">Navigate</Link>
+        <Link to="/mapper">Mapper</Link>
         <Link to="/posters">Print</Link>
         <span className="spacer" />
       </nav>
@@ -56,12 +59,12 @@ export default function QRPoster() {
         </section>
 
         <div className="card">
-          <div className="row" style={{ justifyContent: "space-between" }}>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <h3>Target URL</h3>
               <p style={{ marginBottom: 0 }}>
                 Each QR encodes{" "}
-                <code>{base || "/ar"}?from=ID&amp;to={DEFAULT_DEST}</code>
+                <code>{base || "/navigate"}?from=ID&amp;to={globalDest}</code>
               </p>
             </div>
             <button
@@ -72,6 +75,33 @@ export default function QRPoster() {
               Print these
             </button>
           </div>
+
+          <div className="row" style={{ marginTop: 16, gap: 12 }}>
+            <div>
+              <label style={{ marginTop: 0 }}>Destination</label>
+              <select
+                value={globalDest}
+                onChange={(e) => setGlobalDest(e.target.value)}
+                style={{ width: "auto", minWidth: 180 }}
+              >
+                {destinations.map(([id, node]) => (
+                  <option key={id} value={id}>{node.name || id}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ marginTop: 0 }}>Mode</label>
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+                style={{ width: "auto", minWidth: 140 }}
+              >
+                <option value="navigate">2D Map (/navigate)</option>
+                <option value="ar">AR Guidance (/ar)</option>
+              </select>
+            </div>
+          </div>
+
           <p style={{ marginTop: 12, fontSize: 14 }}>
             Tip: in the print dialog enable "Background graphics" and set
             margins to "None" for clean stickers.
@@ -83,7 +113,7 @@ export default function QRPoster() {
             <div className="qr-tile" key={id}>
               <img src={dataUrl} alt={`QR for ${id}`} />
               <h4>{node.name}</h4>
-              <div className="id">{id} → {DEFAULT_DEST}</div>
+              <div className="id">{id} → {globalDest}</div>
               <div className="url">{target}</div>
             </div>
           ))}

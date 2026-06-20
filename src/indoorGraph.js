@@ -1,60 +1,64 @@
 /**
  * Indoor graph + pathfinding.
  *
- * No GPS is used anywhere — the only positioning signal we have is
- * "the user is standing in front of QR_X". So the graph is hand-authored
- * and lives in code (or a JSON file you can hot-swap per building).
- *
- * Coordinates are arbitrary units in a 2D top-down map of the building.
- *   x = horizontal axis (meters, say)
- *   z = depth axis (meters)
- * y is up in the 3D scene but we don't use it for navigation here.
- *
- * To add a new building, copy this file and edit NODES + EDGES.
+ * Reads from graphStore so the mapper can edit the building live.
+ * Falls back to seed data on first visit.
  */
+import { loadGraph } from "./graphStore.js";
 
-export const NODES = {
-  // Waypoint QR stickers placed at corridor intersections and entrances.
-  // The "id" must match the `?from=` value encoded in the printed QR.
-  "QR_A1": { name: "Lobby — Main Entrance", x: 0,  z: 0,  floor: 1 },
-  "QR_A2": { name: "Hallway A — East Wing",  x: 5,  z: 0,  floor: 1 },
-  "QR_A3": { name: "Hallway A — Junction",   x: 10, z: 0,  floor: 1 },
-  "QR_A4": { name: "Stairwell A",            x: 15, z: 0,  floor: 1 },
-  "QR_B1": { name: "Hallway B — West Wing",  x: 10, z: -5, floor: 1 },
+function getGraph() {
+  return loadGraph();
+}
 
-  // Destinations the user might want to reach. These are reachable nodes
-  // (i.e. you can stand in front of them / find them on the building map).
-  "room-101": { name: "Room 101",        x: 2,  z: -4, floor: 1 },
-  "room-201": { name: "Room 201",        x: 7,  z: 2,  floor: 1 },
-  "room-301": { name: "Room 301",        x: 12, z: 3,  floor: 1 },
-  "cafeteria":{ name: "Cafeteria",       x: 0,  z: 6,  floor: 1 },
-  "exit":     { name: "Fire Exit",       x: 15, z: -3, floor: 1 },
-};
+export function getNodes() {
+  return getGraph().nodes;
+}
 
-export const EDGES = [
-  // undirected: add both directions if you want a fully symmetric graph
-  ["QR_A1", "QR_A2", 5],
-  ["QR_A2", "QR_A3", 5],
-  ["QR_A3", "QR_A4", 5],
-  ["QR_A2", "room-101", 5.4],
-  ["QR_A3", "room-201", 5.4],
-  ["QR_A3", "room-301", 5.4],
-  ["QR_A3", "QR_B1", 5],
-  ["QR_A1", "cafeteria", 7.8],
-  ["QR_A4", "exit",     5.4],
-];
+export function getEdges() {
+  return getGraph().edges;
+}
+
+/** Backward-compat proxy: NODES and EDGES are getters that read from storage. */
+export const NODES = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      return getNodes()[prop];
+    },
+    ownKeys() {
+      return Reflect.ownKeys(getNodes());
+    },
+    getOwnPropertyDescriptor(_, prop) {
+      const val = getNodes()[prop];
+      return val !== undefined
+        ? { value: val, writable: false, enumerable: true, configurable: true }
+        : undefined;
+    },
+  }
+);
+
+export const EDGES = new Proxy([], {
+  get(target, prop) {
+    const edges = getEdges();
+    if (prop === "length") return edges.length;
+    if (prop === Symbol.iterator) return edges[Symbol.iterator].bind(edges);
+    const idx = Number(prop);
+    if (!Number.isNaN(idx)) return edges[idx];
+    return Reflect.get(edges, prop);
+  },
+});
 
 /**
- * Dijkstra over NODES. Returns an array of node ids from `start` to `end`,
- * or null if no path exists. Direction information is derived from the
- * first edge in the path — the AR arrow points from start toward next.
+ * Dijkstra over the dynamic graph. Returns an array of node ids from `start` to `end`,
+ * or null if no path exists.
  */
 export function findPath(start, end) {
-  if (!NODES[start] || !NODES[end]) return null;
+  const { nodes, edges } = getGraph();
+  if (!nodes[start] || !nodes[end]) return null;
   if (start === end) return [start];
 
   const adj = new Map();
-  for (const [a, b, w] of EDGES) {
+  for (const [a, b, w] of edges) {
     if (!adj.has(a)) adj.set(a, []);
     if (!adj.has(b)) adj.set(b, []);
     adj.get(a).push([b, w]);
@@ -95,21 +99,14 @@ export function findPath(start, end) {
 /**
  * Given the current QR waypoint and the next waypoint along the path,
  * return the yaw (radians) the AR arrow should point.
- *
- *   yaw=0   → arrow points along +X (east)
- *   yaw=π/2 → arrow points along +Z (south)
- *
- * Three.js convention: rotation around Y is counter-clockwise looking down.
- * We compute the atan2(dx, dz) so the arrow's "tip" aligns with the
- * direction to the next waypoint when the camera is upright.
  */
 export function directionYaw(currentId, nextId) {
-  const a = NODES[currentId];
-  const b = NODES[nextId];
+  const { nodes } = getGraph();
+  const a = nodes[currentId];
+  const b = nodes[nextId];
   if (!a || !b) return 0;
   const dx = b.x - a.x;
   const dz = b.z - a.z;
-  // Three.js Y-up: positive yaw rotates +X toward -Z, so we negate.
   return Math.atan2(-dz, dx);
 }
 
@@ -117,11 +114,63 @@ export function directionYaw(currentId, nextId) {
  * Total path length in meters, for the "X m to destination" overlay.
  */
 export function pathLength(path) {
+  const { nodes } = getGraph();
   let total = 0;
   for (let i = 0; i < path.length - 1; i++) {
-    const a = NODES[path[i]];
-    const b = NODES[path[i + 1]];
+    const a = nodes[path[i]];
+    const b = nodes[path[i + 1]];
     total += Math.hypot(b.x - a.x, b.z - a.z);
   }
   return total;
+}
+
+/**
+ * Build a lookup of which waypoints have QR codes (id starts with "QR_").
+ */
+export function getWaypointIds() {
+  return Object.keys(getNodes()).filter((id) => id.startsWith("QR_"));
+}
+
+/**
+ * Compute turn instruction between three nodes on a path.
+ * Returns { text: string, distance: number } for the segment starting at `fromIndex`.
+ */
+export function stepInstruction(path, fromIndex) {
+  const { nodes } = getGraph();
+  if (fromIndex >= path.length - 1) {
+    const dest = nodes[path[path.length - 1]];
+    return { text: `Arrive at ${dest?.name || path[path.length - 1]}`, distance: 0 };
+  }
+
+  const cur = nodes[path[fromIndex]];
+  const nxt = nodes[path[fromIndex + 1]];
+  const dist = Math.hypot(nxt.x - cur.x, nxt.z - cur.z);
+
+  if (fromIndex === 0) {
+    return { text: `Start toward ${nxt.name || path[fromIndex + 1]}`, distance: dist };
+  }
+
+  const prev = nodes[path[fromIndex - 1]];
+  const v1x = cur.x - prev.x;
+  const v1z = cur.z - prev.z;
+  const v2x = nxt.x - cur.x;
+  const v2z = nxt.z - cur.z;
+
+  const dot = v1x * v2x + v1z * v2z;
+  const cross = v1x * v2z - v1z * v2x;
+  const turnRad = Math.atan2(cross, dot);
+  const turnDeg = (turnRad * 180) / Math.PI;
+
+  let text;
+  if (Math.abs(turnDeg) < 25) {
+    text = `Walk forward ${Math.round(dist)} m`;
+  } else if (Math.abs(turnDeg) > 155) {
+    text = `Turn around and walk ${Math.round(dist)} m`;
+  } else if (cross > 0) {
+    text = `Turn right and walk ${Math.round(dist)} m`;
+  } else {
+    text = `Turn left and walk ${Math.round(dist)} m`;
+  }
+
+  return { text, distance: dist };
 }
