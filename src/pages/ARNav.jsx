@@ -60,6 +60,12 @@ export default function ARNav() {
   const [diagMessage, setDiagMessage] = useState("");
   const [lastEventTime, setLastEventTime] = useState(null);
   const [showTargetHelp, setShowTargetHelp] = useState(false);
+  const [diagDetails, setDiagDetails] = useState({
+    cameraReady: false,
+    targetFileLoaded: false,
+    targetFileUrl: targetFile,
+    lastEvent: "none",
+  });
 
   const containerRef = useRef(null);
   const mindarRef = useRef(null);
@@ -96,6 +102,15 @@ export default function ARNav() {
     setDiagStatus(status);
     setDiagMessage(message);
     setLastEventTime(new Date().toLocaleTimeString());
+    setDiagDetails((prev) => ({ ...prev, lastEvent: status }));
+  }, []);
+
+  const setCameraReady = useCallback((ready) => {
+    setDiagDetails((prev) => ({ ...prev, cameraReady: ready }));
+  }, []);
+
+  const setTargetFileLoaded = useCallback((loaded) => {
+    setDiagDetails((prev) => ({ ...prev, targetFileLoaded: loaded }));
   }, []);
 
   useEffect(() => {
@@ -114,8 +129,13 @@ export default function ARNav() {
           uiLoading: "no",
           uiScanning: "no",
           uiError: "no",
+          warmupTolerance: 1,
+          missTolerance: 3,
+          filterMinCF: 0.001,
+          filterBeta: 1000,
         });
         mindarRef.current = mindarThree;
+        setTargetFileLoaded(true);
 
         const { renderer, scene, camera } = mindarThree;
 
@@ -141,6 +161,7 @@ export default function ARNav() {
         scene.add(dirLight);
 
         updateStatus("ready", "Point camera at the poster");
+        setCameraReady(true);
 
         await mindarThree.start();
 
@@ -155,12 +176,16 @@ export default function ARNav() {
         const msg = rawMsg === "undefined" ? "" : rawMsg;
         if (msg.includes("fetch") || msg.includes("404") || msg.includes("network")) {
           updateStatus("error", `Target file not loaded: ${targetFile}`);
+          setTargetFileLoaded(false);
         } else if (msg.includes("Permission") || msg.includes("NotAllowed")) {
           updateStatus("error", "Camera permission denied. Please allow camera access.");
+          setCameraReady(false);
         } else if (msg.includes("NotFound")) {
           updateStatus("error", "Camera not found. Ensure a camera is available.");
+          setCameraReady(false);
         } else if (!navigator.mediaDevices) {
           updateStatus("error", "Camera unavailable. This page must be served over HTTPS or localhost.");
+          setCameraReady(false);
         } else if (msg) {
           updateStatus("error", `AR error: ${msg}`);
         } else {
@@ -185,10 +210,10 @@ export default function ARNav() {
   }, [started, from, headingDegrees, targetFile, updateStatus]);
 
   const statusStages = [
-    { key: "camera", label: "Camera ready", ready: diagStatus !== "idle" && diagStatus !== "loading" },
-    { key: "target", label: "Target file loaded", ready: diagStatus !== "idle" && diagStatus !== "loading" && diagStatus !== "error" },
+    { key: "camera", label: "Camera ready", ready: diagDetails.cameraReady },
+    { key: "target", label: "Target file loaded", ready: diagDetails.targetFileLoaded },
     { key: "waiting", label: `Waiting for ${from} target`, ready: diagStatus === "ready" || diagStatus === "lost" },
-    { key: "detected", label: `${from} detected`, ready: diagStatus === "found" },
+    { key: "detected", label: `${from} detected`, ready: targetVisible },
   ];
 
   return (
@@ -261,6 +286,24 @@ export default function ARNav() {
                   ))}
                 </div>
 
+                {/* Troubleshooting details */}
+                <div className="ar-troubleshoot">
+                  <div className="ar-trouble-row">
+                    <span className="ar-trouble-label">Target file:</span>
+                    <code className="ar-trouble-value">{diagDetails.targetFileUrl}</code>
+                  </div>
+                  <div className="ar-trouble-row">
+                    <span className="ar-trouble-label">Target visible:</span>
+                    <span className={`ar-trouble-value ${targetVisible ? "ok" : ""}`}>
+                      {targetVisible ? "Yes" : "No"}
+                    </span>
+                  </div>
+                  <div className="ar-trouble-row">
+                    <span className="ar-trouble-label">Last event:</span>
+                    <span className="ar-trouble-value">{diagDetails.lastEvent}</span>
+                  </div>
+                </div>
+
                 {/* Target thumbnail toggle */}
                 <button
                   className="ar-target-toggle"
@@ -273,7 +316,8 @@ export default function ARNav() {
                   <div className="ar-target-card">
                     <img src={targetImage} alt={`Target poster for ${from}`} />
                     <div className="ar-target-caption">
-                      Point your camera at this exact poster
+                      Point your camera at this exact poster. The entire image
+                      (not just the QR code) is the tracking target.
                     </div>
                   </div>
                 )}
@@ -334,8 +378,9 @@ function LaunchPanel({ fromId, toId, totalMeters, targetImage, onStart }) {
         <h1 className="ar-launch-title">Ready to navigate.</h1>
         <p className="ar-launch-body">
           Tap the button to start AR. Point your camera at the{" "}
-          <strong>{fromId}</strong> poster on the wall. A 3D arrow will appear
-          pointing toward <strong>{toId}</strong>.
+          <strong>{fromId}</strong> poster on the wall. Aim at the full poster
+          image, not just the QR code. A 3D arrow will appear pointing toward{" "}
+          <strong>{toId}</strong>.
         </p>
 
         {/* Target preview card */}
