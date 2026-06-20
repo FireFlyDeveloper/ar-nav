@@ -365,30 +365,27 @@ label {
 /* =============================================================================
    AR view chrome — launch panel + floating overlays
 
-   The <a-scene> in "embedded" mode lives inside the document flow and
-   by default resizes itself to a 16:9 letterboxed box. For fullscreen
-   AR we need the scene AND its inner <canvas> AND A-Frame's
-   <canvas>-wrapping divs to all be exactly 100vw × 100vh with no
-   letterboxing — otherwise the user sees the WebGL feed (which has
-   the camera as a VideoTexture) sitting in the top 70% of the screen
-   and a black bar at the bottom.
+   Official AR.js marker examples use:
+     <body style="margin : 0px; overflow: hidden;">
+     <a-scene embedded arjs="sourceType: webcam; ...">
+       <a-marker type="barcode" value="N">...</a-marker>
+       <a-entity camera></a-entity>
+     </a-scene>
 
-   See AR.js official docs:
-     https://ar-js-org.github.io/AR.js-Docs/marker-based/
-   The recommended setup is `style="width: 100vw; height: 100vh; margin: 0"`
-   on the <a-scene> AND CSS that forces the .a-canvas wrapper div to
-   fill the scene.
+   AR.js owns and injects the webcam element as <video id="arjs-video"> into
+   document.body. Its source code gives that video z-index:-2 and then sizes
+   document.body from the video in its resize path. In a React app, #root and
+   our fixed AR stage are real painted elements; leaving AR.js's negative
+   z-index video behind them produces the reported black viewport/black region.
 
-   Also: html, body, #root must be 100% height. AR.js's
-   "copyElementSizeTo(document.body)" is what makes the <video> in
-   AR.js's source match the viewport — if document.body is shorter
-   than the viewport the camera image gets squished.
+   Keep the official marker setup and let AR.js own the camera, but place the
+   injected video in the visible fullscreen layer and the transparent A-Frame
+   WebGL canvas above it. No manually managed <video> is created here.
    ============================================================================= */
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #000;
 }
 
 .ar-stage {
@@ -397,9 +394,27 @@ html, body, #root {
   width: 100vw;
   height: 100vh;
   background: #000;
-  z-index: 0;
   color: #fff;
   overflow: hidden;
+}
+
+body:has(.ar-stage) {
+  overflow: hidden;
+  background: #000;
+}
+
+/* AR.js injects this element into <body>, not inside .ar-stage. Override only
+   placement/stacking so the official webcam source remains visible behind the
+   transparent A-Frame canvas in React. */
+#arjs-video {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  object-fit: cover !important;
+  z-index: 1 !important;
 }
 
 /* The scene itself and A-Frame's internal divs fill the stage. */
@@ -418,8 +433,8 @@ html, body, #root {
   border: 0 !important;
 }
 
-/* The WebGL canvas A-Frame creates has the VideoTexture on it.
-   Force it to fill the scene, no letterboxing. */
+/* The transparent WebGL canvas A-Frame creates must fill the scene, with no
+   letterboxing, so marker content overlays the fullscreen AR.js webcam feed. */
 .ar-stage canvas,
 .ar-scene-mount canvas {
   position: absolute !important;
@@ -429,6 +444,8 @@ html, body, #root {
   height: 100vh !important;
   display: block !important;
   object-fit: cover !important;
+  background: transparent !important;
+  z-index: 2 !important;
 }
 
 .ar-launch {
@@ -496,40 +513,6 @@ html, body, #root {
   padding-left: 16px;
   border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
-
-.ar-scene-mount,
-.ar-scene-mount > a-scene,
-.ar-scene-mount > a-scene > div {
-  width: 100vw !important;
-  height: 100vh !important;
-}
-
-/* AR.js injects a <video id="arjs-video"> into document.body. It carries
-   the live webcam feed and is piped to a Three.js VideoTexture. The
-   <video> itself is hidden (display:none in the AR.js stylesheet) — the
-   user sees the feed through the WebGL canvas. So we just need to make
-   .ar-scene-mount,
-   .ar-scene-mount > a-scene,
-   .ar-scene-mount > a-scene > div,
-   .ar-scene-mount canvas {
-     width: 100vw !important;
-     height: 100vh !important;
-   }
-
-   /* AR.js injects a <video id="arjs-video"> into document.body. It carries
-      the live webcam feed and is piped to a Three.js VideoTexture. The
-      <video> itself is hidden (display:none in the AR.js stylesheet) — the
-      user sees the feed through the WebGL canvas. So we just need to make
-      sure the canvas fills the scene. */
-   .ar-stage video,
-   .ar-stage canvas {
-     position: absolute !important;
-     top: 0 !important;
-     left: 0 !important;
-     width: 100% !important;
-     height: 100% !important;
-     object-fit: cover !important;
-   }
 
 .ar-overlay {
   position: fixed;
